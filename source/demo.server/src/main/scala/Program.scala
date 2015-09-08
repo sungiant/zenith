@@ -3,6 +3,7 @@ package demo.server
 import demo._
 
 import zenith._
+import zenith.context._
 import zenith.client._
 import zenith.server._
 import zenith.netty._
@@ -10,13 +11,13 @@ import zenith.netty._
 import scala.io.StdIn
 
 object Program {
-  type C[$] = FunctionalContext.CONTEXT[$]
+  type C[$] = Context.CONTEXT[$]
   import java.util.concurrent.Executors
   import scala.concurrent.ExecutionContext
 
   val userES = Executors.newFixedThreadPool (8)
   val userEC = ExecutionContext.fromExecutorService (userES)
-  implicit val context: Context[C] = FunctionalContext.context (userEC)
+  implicit val context: Context[C] = Context.context (userEC)
 
   val clientProvider = new NettyHttpClientProvider[C]
   val serverProvider = new NettyHttpServerProvider[C]
@@ -32,7 +33,7 @@ object Program {
       val port = p
       val serviceGroups = HttpServiceGroup[C](statusService :: proxyService :: Nil) :: Nil
       override val resourcePaths = "/" :: Nil
-      override def contextHandler (z: C[HttpResponse]) = FunctionalContext.handle[HttpResponse] (userEC, HttpResponse.plain (500)) (z)
+      override def contextHandler (z: C[HttpResponse]) = Context.printAndClear[HttpResponse] (System.out, userEC, HttpResponse.plain (500)) (z)
     }
   }
 
@@ -49,15 +50,15 @@ object Program {
   }
 
   def main (args: Array[String]): Unit = {
-    println ("Registering shutdown hook.")
+    System.out.println ("Registering shutdown hook.")
     Runtime.getRuntime.addShutdownHook (new Thread {
       override def run (): Unit = {
-        println (s"Shutdown hook triggered.")
+        System.out.println (s"Shutdown hook triggered.")
         stopService ()
       }
     })
     startService ()
-    println (s"$name is now running on localhost:$p")
+    System.out.println (s"$name is now running on localhost:$p")
     StdIn.readLine ()
     stopService ()
     userES.shutdown ()

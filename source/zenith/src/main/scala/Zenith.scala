@@ -9,9 +9,9 @@
 package zenith
 
 import simulacrum._
-import scala.util.{Try, Success, Failure}
+import scala.util.Try
 import cats.Monad
-
+import zenith.Extensions._
 
 
 /** CONTEXTUAL TYPES **/
@@ -27,10 +27,31 @@ trait Context[Z[_]] extends Monad[Z] with Async[Z] with Logger[Z]
  * Logger
  */
 @typeclass trait Logger[Z[_]] {
-  def debug (msg: String): Z[Unit]
-  def info (msg: String): Z[Unit]
-  def warn (msg: String): Z[Unit]
-  def error (msg: String): Z[Unit]
+  import Logger._
+  def log (channel: Option[String], level: Level, message: String): Z[Unit]
+
+  /* HELPERS */
+  def log (channel: Option[String], level: Level, throwable: Throwable): Z[Unit] = log (channel, level, throwable.stackTrace)
+  def debug (message: String): Z[Unit] = log (None, Level.DEBUG, message)
+  def info (message: String): Z[Unit] = log (None, Level.INFO, message)
+  def warn (message: String): Z[Unit] = log (None, Level.WARN, message)
+  def error (message: String): Z[Unit] = log (None, Level.ERROR, message)
+  def trace (throwable: Throwable): Z[Unit] = log (None, Level.ERROR, throwable)
+}
+object Logger {
+  val ZENITH = Some ("ZENITH")
+  case class Level (value: Int, name: String)
+  object Level {
+    val DEBUG = Level (1, "debug")
+    val INFO = Level (2, "info")
+    val WARN = Level (3, "warn")
+    val ERROR = Level (4, "error")
+
+    private val levels = List (DEBUG, INFO, WARN, ERROR)
+
+    def apply(value: Int): Option[Level] = levels find (_.value == value)
+    def apply(name: String): Option[Level] = levels find (_.name == name.toUpperCase)
+  }
 }
 
 
@@ -261,7 +282,7 @@ object HttpResponse {
 /** EXTENSIONS */
 /**********************************************************************************************************************/
 
-object Extensions extends StringExtensions
+object Extensions extends StringExtensions with ThrowableExtensions
 
 trait StringExtensions {
   implicit class Implicit (val s: String) {
@@ -270,6 +291,17 @@ trait StringExtensions {
       val b = "(?<=[^A-Z])(?=[A-Z])"
       val c = "(?<=[A-Za-z])(?=[^A-Za-z])"
       s"$a|$b|$c".r.replaceAllIn (s, " ")
+    }
+  }
+}
+
+trait ThrowableExtensions {
+  implicit class Implicit (val t: Throwable) {
+    def stackTrace: String = {
+      import java.io.{PrintWriter, StringWriter}
+      val stackTrace = new StringWriter
+      t.printStackTrace (new PrintWriter (stackTrace))
+      stackTrace.toString
     }
   }
 }

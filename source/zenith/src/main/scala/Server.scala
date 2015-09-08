@@ -9,6 +9,8 @@
 package zenith.server
 
 import zenith._
+import zenith.Logger._
+import zenith.Logger.Level._
 import zenith.Extensions._
 import scala.util.{Try, Success, Failure}
 import cats._
@@ -132,7 +134,7 @@ final case class HttpServiceEndpoint[Z[_]: Context] (parent: HttpService[Z], fn:
       val x = fn.invoke (parent, request)
       val a = Try { x.asInstanceOf[Z[HttpResponse]] }.toOption
       for {
-        _ <- logger.debug (s"executing handler for ${request.path}")
+        _ <- logger.log (ZENITH, DEBUG, s"executing handler for ${request.path}")
         result <- a match {
           case Some (z) => z
           case _ => throw new Exception ("Endpoint signature not supported.")
@@ -208,43 +210,43 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
   def processZ (request: HttpRequest): Z[HttpResponse] = {
     val startTime = DateTime.now (DateTimeZone.UTC).getMillis
     for {
-      _ <- debug (s"Received request:\n${request.toPrettyString}")
+      _ <- log (ZENITH, INFO, s"Received request:\n${request.toPrettyString}")
       reqPath = request.path
-      _ <- debug (s"Looking for handler for ${request.method} $reqPath")
+      _ <- log (ZENITH, DEBUG, s"Looking for handler for ${request.method} $reqPath")
       result <- endpointGroups
         .map (x => (x, x.services.collectFirst { case s if s.handler.isDefinedAt (request) => s }))
         .collectFirst { case (e, s) if s.isDefined => (e, s.get) } match {
         case None => for {
           result <- tryStaticResource (reqPath)
-          _ <- debug (s"No suitable handler found.")
+          _ <- log (ZENITH, DEBUG, s"No suitable handler found.")
         } yield result
         case Some ((endpointGroup, service)) => for {
-          _ <- debug (s"Found handler in service: ${service.id}")
+          _ <- log (ZENITH, DEBUG, s"Found handler in service: ${service.id}")
           filteredRequest <- applyRequestFilters (request, endpointGroup.requestFilters)
           response <- filteredRequest match {
             case Left (bad) => for {
-              _ <- debug (s"Not handling request, filters returned: $bad")
+              _ <- log (ZENITH, DEBUG, s"Not handling request, filters returned: $bad")
               v <- success (bad)
             } yield v
             case Right (good) => for {
-              _ <- debug (s"About to handle request: $good")
+              _ <- log (ZENITH, DEBUG, s"About to handle request: $good")
               result <- service.handler.apply (good)
             } yield result
           }
           mappedResponse <- applyResponseMappers (response, endpointGroup.responseMappers)
-          _ <- debug (s"Generated response:\n${response.toPrettyString}")
+          _ <- log (ZENITH, INFO, s"Generated response:\n${response.toPrettyString}")
           processingTime = DateTime.now (DateTimeZone.UTC).getMillis - startTime
-          _ <- debug (s"Processing time: ${processingTime}ms")
+          _ <- log (ZENITH, INFO, s"Processing time: ${processingTime}ms")
         } yield mappedResponse
       }
     } yield result
   }
 
   private def applyRequestFilters (req: HttpRequest, requestFilters: List[RequestFilter[Z]]): Z[HttpResponse Either HttpRequest] = for {
-    _ <- debug (s"About to apply request filters")
+    _ <- log (ZENITH, DEBUG, s"About to apply request filters")
     result <- requestFilters.foldLeft (success[HttpResponse Either HttpRequest] (Right (req))) { (acc, f) =>
       for {
-        _ <- debug (s"Sequencing request filter:${f.name}")
+        _ <- log (ZENITH, DEBUG, s"Sequencing request filter:${f.name}")
         a <- acc
         result <- a match {
           case Left (bad) => success[HttpResponse Either HttpRequest] (Left (bad))
@@ -255,10 +257,10 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
   } yield result
 
   private def applyResponseMappers (resp: HttpResponse, responseMappers: List[ResponseMapper[Z]]): Z[HttpResponse] = for {
-    _ <- debug (s"About to apply response mappers")
+    _ <- log (ZENITH, DEBUG, s"About to apply response mappers")
     result <- responseMappers.foldLeft (success (resp)) { (acc, f) =>
       for {
-        _ <- debug (s"Sequencing response mapper:${f.name}")
+        _ <- log (ZENITH, DEBUG, s"Sequencing response mapper:${f.name}")
         a <- acc
         result <- f.run (a)
       } yield result
@@ -280,23 +282,23 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
   }
 
   private def tryStaticResource (requestPath: String): Z[HttpResponse] = for {
-    _ <- debug (s"Working out best path.")
+    _ <- log (ZENITH, DEBUG, s"Working out best path.")
     bestPathOpt = getBestPath[Z] (requestPath).run (config)
     result <- bestPathOpt match {
       case None => for {
-        _ <- debug (s"No static resource path configured.")
+        _ <- log (ZENITH, DEBUG, s"No static resource path configured.")
         result <- success[Option[HttpResponse]] (None)
       } yield result
       case Some (bestPath) => for {
-        _ <- debug (s"Looking for static resource: $bestPath")
+        _ <- log (ZENITH, DEBUG, s"Looking for static resource: $bestPath")
         result <- ResourceUtils.resourceExists (bestPath) match {
           case false => for {
-            _ <- debug (s"No suitable static resource found for: $requestPath")
+            _ <- log (ZENITH, DEBUG, s"No suitable static resource found for: $requestPath")
           } yield None: Option[HttpResponse]
           case true =>
             val resource = getClass.getResource (bestPath)
             for {
-              _ <- debug (s"Found static resource at: ${resource.getPath}")
+              _ <- log (ZENITH, DEBUG, s"Found static resource at: ${resource.getPath}")
               content = Source.fromFile (resource.getFile).getLines ().mkString ("\n")
             } yield content match {
               case null | "" => Some (HttpResponse.plain (404, "Not Found"))

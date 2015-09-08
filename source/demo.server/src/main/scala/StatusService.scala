@@ -1,16 +1,12 @@
 package demo.server
 
 import demo._
-
 import zenith._
 import zenith.client._
 import zenith.server._
 import zenith.netty._
-
 import cats.Monad.ops._
-
 import org.joda.time.{DateTime, DateTimeZone}
-
 import scala.util.Try
 import scala.io.StdIn
 

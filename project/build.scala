@@ -76,6 +76,12 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (commonSettings: _*)
     .settings (libraryDependencies += "io.netty" % "netty" % "3.10.3.Final")
     .dependsOn (zenith % "test->test;compile->compile")
+
+  lazy val zenith_context = project
+    .in (file ("source/zenith.context"))
+    .settings (moduleName := "zenith-context")
+    .settings (commonSettings: _*)
+    .dependsOn (zenith % "test->test;compile->compile")
 }
 
 trait SbtDemoBuild { this: SbtCommonConfig with SbtZenithBuild =>
@@ -94,6 +100,7 @@ trait SbtDemoBuild { this: SbtCommonConfig with SbtZenithBuild =>
     .dependsOn (demo % "test->test;compile->compile")
     .dependsOn (zenith % "test->test;compile->compile")
     .dependsOn (zenith_netty % "test->test;compile->compile")
+    .dependsOn (zenith_context % "test->test;compile->compile")
 
   lazy val demo_bot = project
     .in (file ("source/demo.bot"))
@@ -104,4 +111,5 @@ trait SbtDemoBuild { this: SbtCommonConfig with SbtZenithBuild =>
     .dependsOn (demo % "test->test;compile->compile")
     .dependsOn (zenith % "test->test;compile->compile")
     .dependsOn (zenith_netty % "test->test;compile->compile")
+    .dependsOn (zenith_context % "test->test;compile->compile")
 }

@@ -134,7 +134,7 @@ object ActionT {
     def runAssertions (action: ActionT[Z, ClientState, TRequest, TResponse], response: TResponse): StateT[Z, ClientState, Result] = {
       val assertions = action.assertions.map { assertion => for {
           r <- liftStateT[Z, ClientState, Result] (assertion.run(response))
-          _ <- info (s"[$r] ${assertion.description}")
+          _ <- info (s"$r ${assertion.description}")
         } yield r
       }
       for {
