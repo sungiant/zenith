@@ -4,7 +4,7 @@
 [![Join the chat at https://gitter.im/sungiant/zenith](https://img.shields.io/badge/gitter-join%20chat-green.svg)](https://gitter.im/sungiant/zenith?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://opensource.org/licenses/MIT)
 
-Functional Scala HTTP Toolkit
+zenith is a functional HTTP toolkit for Scala.
 
 ## License
 
