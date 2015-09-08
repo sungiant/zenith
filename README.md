@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/sungiant/zenith.png?branch=master)](https://travis-ci.org/sungiant/zenith)
 [![Join the chat at https://gitter.im/sungiant/zenith](https://img.shields.io/badge/gitter-join%20chat-green.svg)](https://gitter.im/sungiant/zenith?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://raw.githubusercontent.com/sungiant/zenith/master/LICENSE)
 
 Zenith is a functional HTTP toolkit for Scala.
 
@@ -16,4 +16,4 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-[mit]: https://opensource.org/licenses/MIT
+[mit]: https://raw.githubusercontent.com/sungiant/zenith/master/LICENSE
