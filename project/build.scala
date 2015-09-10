@@ -12,7 +12,7 @@ import sbtrelease.ReleasePlugin.autoImport._
 import com.typesafe.sbt.SbtPgp.autoImport._
 
 object SbtBuild extends Build
-  with SbtCommonConfig with SbtZenithBuild with SbtDemoBuild {
+  with SbtCommonConfig with SbtZenithBuild {
   lazy val default = project
     .in (file ("."))
     .settings (initialCommands in console :=
@@ -32,7 +32,7 @@ object SbtBuild extends Build
     .dependsOn (zenith % "test->test;compile->compile")
     .dependsOn (zenith_netty % "test->test;compile->compile")
     .dependsOn (zenith_context % "test->test;compile->compile")
-    .aggregate (zenith, zenith_netty, zenith_context, demo, demo_server, demo_bot)
+    .aggregate (zenith, zenith_netty, zenith_context)
 }
 
 trait SbtCommonConfig {
@@ -146,40 +146,4 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (commonSettings: _*)
     .settings (publishSettings: _*)
     .dependsOn (zenith % "test->test;compile->compile")
-}
-
-trait SbtDemoBuild { this: SbtCommonConfig with SbtZenithBuild =>
-  lazy val demo = project
-    .in (file ("source/demo"))
-    .settings (moduleName := "demo")
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (noPublishSettings: _*)
-    .dependsOn (zenith % "test->test;compile->compile")
-
-  lazy val demo_server = project
-    .in (file ("source/demo.server"))
-    .settings (moduleName := "demo-server")
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (noPublishSettings: _*)
-    .settings (connectInput in run := true)
-    .settings (fork in run := true)
-    .dependsOn (demo % "test->test;compile->compile")
-    .dependsOn (zenith % "test->test;compile->compile")
-    .dependsOn (zenith_netty % "test->test;compile->compile")
-    .dependsOn (zenith_context % "test->test;compile->compile")
-
-  lazy val demo_bot = project
-    .in (file ("source/demo.bot"))
-    .settings (moduleName := "demo-bot")
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (noPublishSettings: _*)
-    .settings (connectInput in run := true)
-    .settings (fork in run := true)
-    .dependsOn (demo % "test->test;compile->compile")
-    .dependsOn (zenith % "test->test;compile->compile")
-    .dependsOn (zenith_netty % "test->test;compile->compile")
-    .dependsOn (zenith_context % "test->test;compile->compile")
 }
