@@ -108,6 +108,41 @@ object Async {
 
 /** REQUEST & RESPONSE TYPES **/
 /**********************************************************************************************************************/
+/**
+ * http://en.wikipedia.org/wiki/Uniform_resource_locator
+ *
+ * URI scheme
+ *
+ *  foo://username:password@example.com:8042/over/there/index.dtb?type=animal&name=narwhal#nose
+ *  \_/   \_______________/ \_________/ \__/            \___/ \_/ \______________________/ \__/
+ *   |           |               |       |                |    |            |                |
+ *   |       userinfo           host    port              |    |          query          fragment
+ *   |    \________________________________/\_____________|____|/ \__/        \__/
+ * scheme                 |                          |    |    |    |          |
+ *  name              authority                      |    |    |    |          |
+ *   |                                             path   |    |    interpretable as keys
+ *   |                                                    |    |
+ *   |    \_______________________________________________|____|/       \____/     \_____/
+ *   |                         |                          |    |          |           |
+ * scheme              hierarchical part                  |    |    interpretable as values
+ *  name                                                  |    |
+ *   |            path               interpretable as filename |
+ *   |   ___________|____________                              |
+ *  / \ /                        \                             |
+ *  urn:example:animal:ferret:nose               interpretable as extension
+ *
+ *                path
+ *         _________|________
+ * scheme /                  \
+ *  name  userinfo  hostname       query
+ *  _|__   ___|__   ____|____   _____|_____
+ * /    \ /      \ /         \ /           \
+ * mailto:username@example.com?subject=Topic
+ *
+ *
+ * (diagram from: http://en.wikipedia.org/wiki/URI_scheme#Examples)
+ *
+ */
 
 /**
  * HttpExchange
@@ -172,15 +207,26 @@ object HttpRequest {
   def createFromUrl (
     url: String, method: String = "GET", headers: Option[Map[String, String]] = None, data: Option[String] = None)
   : HttpRequest = {
+    import scala.util.matching.Regex._
+    val jURL = new java.net.URL (url)
 
-    val path = UrlUtils.getPath (url)
-    val queryString = UrlUtils.getQueryString (url)
-    val fragmentIdentifier = UrlUtils.getFragmentIdentifier (url)
+    val _path = jURL.getPath
+    val _query =  "(\\?)([a-zA-Z0-9-._=&~]+)".r.findFirstMatchIn (url).map { case Groups (one, two) => two }
+    val _fragment = "(#)([a-zA-Z0-9-._=&~]+)".r.findFirstMatchIn (url).map { case Groups (one, two) => two }
 
-    val _requestUri = s"$path?$queryString#$fragmentIdentifier"
+    // Not what we want: jURL.getPath.toString
+    val _requestUri = (_query, _fragment) match {
+      case (Some (q), Some (f)) =>  _path + s"?$q#$f"
+      case (Some (q), None) =>      _path + s"?$q"
+      case (None, Some (f)) =>      _path + s"#$f"
+      case (None, None) =>          _path
+    }
 
-    val _host = UrlUtils.getHost (url)
-    val _port = UrlUtils.getPort (url).getOrElse (80)
+    val _host = jURL.getHost
+    val _port = jURL.getPort match {
+      case x if x < 0 => 80
+      case x => x
+    }
 
     val _headers = headers match {
       case None => Map[String, String]()
@@ -188,18 +234,6 @@ object HttpRequest {
 
     HttpRequest (method, _requestUri, "HTTP/1.1", _host, _port, _headers, data)
   }
-
-  def createFromAuthority (
-     authority: String, requestUri: String, // the request uri consists of path?query#fragment (this is not the same as a URI)
-     method: Option[String] = None, headers: Option[Map[String, String]] = None, data: Option[String] = None)
-  : HttpRequest = ???
-
-  def createFromHostAndPort (
-     host: String, port: Int, requestUri: String, // the request uri consists of path?query#fragment (this is not the same as a URI)
-     method: Option[String] = None, headers: Option[Map[String, String]] = None, data: Option[String] = None)
-  : HttpRequest = ???
-
-  def getUrl (request: HttpRequest): String = s"http://${request.host}${request.requestUri}"
 
   def getQueryParameterMap (request: HttpRequest): Map[String, String] = {
     val empty = Map.empty[String, String]
@@ -328,73 +362,3 @@ object ResourceUtils {
     } catch { case _ : Throwable => false }
   }
 }
-
-
-/**
- * This is a standard `URL` helper, it is not a standard `URI` helper.
- * http://en.wikipedia.org/wiki/Uniform_resource_locator
- *
- * URI scheme
- *
- *  foo://username:password@example.com:8042/over/there/index.dtb?type=animal&name=narwhal#nose
- *  \_/   \_______________/ \_________/ \__/            \___/ \_/ \______________________/ \__/
- *   |           |               |       |                |    |            |                |
- *   |       userinfo           host    port              |    |          query          fragment
- *   |    \________________________________/\_____________|____|/ \__/        \__/
- * scheme                 |                          |    |    |    |          |
- *  name              authority                      |    |    |    |          |
- *   |                                             path   |    |    interpretable as keys
- *   |                                                    |    |
- *   |    \_______________________________________________|____|/       \____/     \_____/
- *   |                         |                          |    |          |           |
- * scheme              hierarchical part                  |    |    interpretable as values
- *  name                                                  |    |
- *   |            path               interpretable as filename |
- *   |   ___________|____________                              |
- *  / \ /                        \                             |
- *  urn:example:animal:ferret:nose               interpretable as extension
- *
- *                path
- *         _________|________
- * scheme /                  \
- *  name  userinfo  hostname       query
- *  _|__   ___|__   ____|____   _____|_____
- * /    \ /      \ /         \ /           \
- * mailto:username@example.com?subject=Topic
- *
- *
- * (diagram from: http://en.wikipedia.org/wiki/URI_scheme#Examples)
- *
- */
-object UrlUtils {
-  import scala.util.matching.Regex._
-
-  // not including the `://`
-  def getScheme (url: String): String =
-    "(http|https?)(:\\/\\/)([a-zA-Z0-9-._~]+)(:|\\/?)".r.findFirstMatchIn (url).map { case Groups (one, two, three, four) => three }.get
-
-  // not including any of the scheme
-  def getHost (url: String): String = {
-    val uri = url.indexOf ("://") match {
-      case x if x >= 0 => url.splitAt (x)._2
-      case _ => url
-    }
-    "([a-zA-Z0-9-._]+)".r.findFirstMatchIn (uri).map { case Groups (one) => one}.getOrElse (url)
-  }
-
-  def getPort (url: String): Option[Int] =
-    "(:)([0-9]+)(/?)".r.findFirstMatchIn (url).map { case Groups (one, two, three) => two.toInt }
-
-  def getPath (url: String): String =
-    "([a-zA-Z0-9]+)(/[a-zA-Z0-9-._~/]+)".r.findFirstMatchIn (url).map { case Groups (one, two) => two }.getOrElse ("/")
-
-  // not including the `?`
-  def getQueryString (url: String): Option[String] =
-    "(\\?)([a-zA-Z0-9-._~=&]+)(#?)".r.findFirstMatchIn (url).map { case Groups (one, two, three) => two }
-
-  // not including the `#`
-  def getFragmentIdentifier (url: String): Option[String] =
-    "(#)([a-zA-Z0-9-._~]+)".r.findFirstMatchIn (url).map { case Groups (one, two) => two }
-}
-
-

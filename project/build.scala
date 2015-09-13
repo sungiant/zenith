@@ -63,6 +63,8 @@ trait SbtCommonConfig {
       "org.spire-math" %% "cats" % "0.1.2",
       "com.github.nscala-time" %% "nscala-time" % "1.6.0"),
     scalacOptions ++= compilerOptions,
+    scalacOptions in (Compile, console) := compilerOptions,
+    scalacOptions in (Compile, test) := compilerOptions,
     parallelExecution in ThisBuild := false
   )
   lazy val noPublishSettings = Seq(
@@ -127,6 +129,7 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (libraryDependencies += "io.circe" %% "circe-core" % "0.1.1")
     .settings (libraryDependencies += "io.circe" %% "circe-generic" % "0.1.1")
     .settings (libraryDependencies += "io.circe" %% "circe-jawn" % "0.1.1")
+    .settings (libraryDependencies += "org.specs2" %% "specs2-core" % "2.4.15" % "test")
     .settings (autoCompilerPlugins := true)
     .settings (addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0-M5" cross CrossVersion.full))
 
