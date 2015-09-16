@@ -20,7 +20,7 @@ import zenith.Extensions._
 /**
  * Context
  */
-trait Context[Z[_]] extends Monad[Z] with Async[Z] with Logger[Z]
+@typeclass trait Context[Z[_]] extends Monad[Z] with Async[Z] with Logger[Z]
 
 
 /**
