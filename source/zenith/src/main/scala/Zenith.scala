@@ -72,6 +72,8 @@ object Logger {
   def success[T] (expression: => T): Z[T]
   def failure[T] (expression: => Throwable): Z[T]
 
+  def liftScalaFuture[T] (fx: => scala.concurrent.Future[T]): Z[T]
+
 
   /*
    * When this future is completed, either through an exception, or a value,

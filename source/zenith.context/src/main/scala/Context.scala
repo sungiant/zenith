@@ -205,6 +205,11 @@ object Context {
     }
 
     /** Async */
+    override def liftScalaFuture[T] (expression: => Future[T]): CONTEXT[T] =  Try (expression) match {
+      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](s))
+      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+    }
+
     override def future[T] (expression: => T): CONTEXT[T] = Try (expression) match {
       case Success (s) => EitherT.right[WF, Throwable, T](WriterT.value[Future, LoggingContext, T](s))
       case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
