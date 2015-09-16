@@ -13,7 +13,6 @@ import org.specs2.mutable._
 import Extensions._
 
 class HttpRequestSpec extends Specification {
-
   "Using HttpRequest's `createFromUrl` method" should {
     val url = "https://www.google.co.uk/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=zenith"
     "provide the `host` correctly" in {

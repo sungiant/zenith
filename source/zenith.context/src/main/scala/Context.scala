@@ -26,7 +26,7 @@ import cats._
 import cats.state._
 import cats.data._
 
-import scala.util.Try
+import scala.util.{Try, Success, Failure}
 import scala.concurrent.{Promise, Future, ExecutionContext}
 import java.io.PrintStream
 
@@ -197,15 +197,29 @@ object Context {
     implicit val monadFuture: Monad[Future] = scalaFutureMonad (ec)
     implicit val monadWriterT: Monad[WF] = scalaFutureLoggingContextWriterTMonad
 
-
     /** Logger */
-    override def log (channel: Option[String], level: zenith.Logger.Level, message: String): CONTEXT[Unit] =
-      EitherT.right[WF, Throwable, Unit](WriterT.put[Future, LoggingContext, Unit](())(LoggingContext.log (channel, level, message)))
+    override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): CONTEXT[Unit] =
+      Try { LoggingContext.log (channel, level, message) } match {
+      case Success (s) => EitherT.right[WF, Throwable, Unit](WriterT.put[Future, LoggingContext, Unit](())(s))
+      case Failure (f) => EitherT.left[WF, Throwable, Unit] (WriterT.value[Future, LoggingContext, Throwable](f))
+    }
 
     /** Async */
-    override def future[T] (x: T): CONTEXT[T] = EitherT.right[WF, Throwable, T](WriterT.value[Future, LoggingContext, T](x))
-    override def success[T] (x: T): CONTEXT[T] = EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](Future.successful (x)))
-    override def failure[T] (x: Throwable): CONTEXT[T] = EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](x))
+    override def future[T] (expression: => T): CONTEXT[T] = Try (expression) match {
+      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.value[Future, LoggingContext, T](s))
+      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+    }
+
+    override def success[T] (expression: => T): CONTEXT[T] = Try (expression) match {
+      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](Future.successful (s)))
+      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+    }
+
+    override def failure[T] (expression: => Throwable): CONTEXT[T] = Try (expression) match {
+      case Success (s) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](s))
+      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+    }
+
     override def onComplete[T, X](v: CONTEXT[T], f: Try[T] => X): Unit = v.run.value.map { case Left (l) => throw l; case Right (r) => r }(ec).onComplete (f)(ec)
     override def promise[T] (): Async.Promise[CONTEXT, T] = new Async.Promise[CONTEXT, T] {
       private val p = Promise[T] ()

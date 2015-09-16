@@ -9,7 +9,7 @@
 package zenith
 
 import simulacrum._
-import scala.util.Try
+import scala.util.{Try, Success, Failure}
 import cats.Monad
 import zenith.Extensions._
 
@@ -28,15 +28,15 @@ trait Context[Z[_]] extends Monad[Z] with Async[Z] with Logger[Z]
  */
 @typeclass trait Logger[Z[_]] {
   import Logger._
-  def log (channel: Option[String], level: Level, message: String): Z[Unit]
+  def log (channel: => Option[String], level: => Level, message: => String): Z[Unit]
 
   /* HELPERS */
-  def log (channel: Option[String], level: Level, throwable: Throwable): Z[Unit] = log (channel, level, throwable.stackTrace)
-  def debug (message: String): Z[Unit] = log (None, Level.DEBUG, message)
-  def info (message: String): Z[Unit] = log (None, Level.INFO, message)
-  def warn (message: String): Z[Unit] = log (None, Level.WARN, message)
-  def error (message: String): Z[Unit] = log (None, Level.ERROR, message)
-  def trace (throwable: Throwable): Z[Unit] = log (None, Level.ERROR, throwable)
+  def log (channel: => Option[String], level: => Level, throwable: Throwable): Z[Unit] = log (channel, level, throwable.stackTrace)
+  def debug (message: => String): Z[Unit] = log (None, Level.DEBUG, message)
+  def info (message: => String): Z[Unit] = log (None, Level.INFO, message)
+  def warn (message: => String): Z[Unit] = log (None, Level.WARN, message)
+  def error (message: => String): Z[Unit] = log (None, Level.ERROR, message)
+  def trace (throwable: => Throwable): Z[Unit] = log (None, Level.ERROR, throwable)
 }
 object Logger {
   val ZENITH = Some ("ZENITH")
@@ -66,10 +66,12 @@ object Logger {
  *
  */
 @typeclass trait Async[Z[_]] {
-  def promise[T] (): Async.Promise[Z, T]
-  def future[T] (x: T): Z[T]
-  def success[T] (x: T): Z[T]
-  def failure[T] (x: Throwable): Z[T]
+
+  def promise[T](): Async.Promise[Z, T]
+  def future[T] (expression: => T): Z[T]
+  def success[T] (expression: => T): Z[T]
+  def failure[T] (expression: => Throwable): Z[T]
+
 
   /*
    * When this future is completed, either through an exception, or a value,
