@@ -8,6 +8,24 @@
 
 Zenith is a functional HTTP toolkit for Scala.
 
+## Getting Started
+
+Zenith is currently available for Scala 2.11.
+
+To get started with SBT, simply add the following to your `build.sbt` file:
+
+```scala
+libraryDependencies += "io.github.sungiant" %% "zenith" % "0.0.3"
+```
+
+Additionally, the following packages contain off the shelf implementations of Zenith's abstract network layer and sequencing context:
+
+```scala
+libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.0.3"
+libraryDependencies += "io.github.sungiant" %% "zenith-context" % "0.0.3"
+```
+
+
 ## License
 
 Zenith is licensed under the **[MIT License][mit]**; you may not use this software except in compliance with the License.
