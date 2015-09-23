@@ -56,6 +56,12 @@ object WriterT {
   def tell[T[_], L] (l: L)(implicit f: Functor[T], a: Applicative[T]): WriterT[T, L, Unit] = WriterT.put[T, L, Unit](())(l)
   def value[T[_], L, V] (v: V)(implicit f: Functor[T],  a: Applicative[T], m: Monoid[L]): WriterT[T, L, V] = WriterT.put[T, L, V](v)(m.empty)
   def valueT[T[_], L, V] (vt: T[V])(implicit f: Functor[T], m: Monoid[L]): WriterT[T, L, V] = WriterT.putT[T, L, V](vt)(m.empty)
+
+  implicit def writerTMonad[T[_], L] (implicit monadT: Monad[T], monoid: Monoid[L]) = new Monad[({type WT[α] = WriterT[T, L, α]})#WT] {
+    override def pure[A] (a: A): ({type WT[α] = WriterT[T, L, α]})#WT[A] = WriterT.value[T, L, A](a)
+    override def flatMap[A, B] (fa: ({type WT[α] = WriterT[T, L, α]})#WT[A])(f: A => ({type WT[α] = WriterT[T, L, α]})#WT[B]): WriterT[T, L, B] = fa.flatMap (a => f (a))
+    override def ap[A, B] (fa: ({type WT[α] = WriterT[T, L, α]})#WT[A])(ff: ({type WT[α] = WriterT[T, L, α]})#WT[A => B]): ({type WT[α] = WriterT[T, L, α]})#WT[B] = fa.flatMap (a => ff.map (f => f (a)))
+  }
 }
 
 /**
@@ -84,7 +90,24 @@ object EitherT {
   def right[F[_], A, B] (b: F[B])(implicit f: Functor[F]): EitherT[F, A, B] = EitherT[F, A, B] (f.map (b)(makeRight))
 }
 
-object Extensions extends PrintStreamExtensions
+object Extensions extends PrintStreamExtensions with FutureExtensions
+
+trait FutureExtensions {
+  implicit class Implicit[T](val thisF: Future[T]) {
+    def mapAll[Target] (f: Try[T] => Target)(implicit ec: ExecutionContext): Future[Target] = {
+      val promise = Promise[Target]()
+      thisF.onComplete {
+        thisR => try {
+          val result = f (thisR)
+          promise success result
+        } catch {
+          case t: Throwable => promise failure t
+        }
+      }(ec)
+      promise.future
+    }
+  }
+}
 
 trait PrintStreamExtensions {
   implicit class Implicit (val out: PrintStream) {
@@ -120,7 +143,7 @@ trait PrintStreamExtensions {
 
       // TODO: Add proper support for filtering logs by channel and debug.  Right now this is just hard coded to hide all
       (channel, level) match {
-        case (zenith.Logger.ZENITH, zenith.Logger.Level.DEBUG) => ()
+        //case (zenith.Logger.ZENITH, zenith.Logger.Level.DEBUG) => ()
         case _ =>
           message.split ('\n').toList match {
             case head :: tail =>
@@ -153,31 +176,29 @@ object Context {
   type EWT[$] = EitherT[WF, Throwable, $]
   type CONTEXT[$] = EWT[$]
 
-  private def scalaFutureMonad (implicit ec: ExecutionContext) = new Monad[Future] {
+  def scalaFutureMonad (implicit ec: ExecutionContext): Monad[Future] = new Monad[Future] {
     override def pure[A] (a: A): Future[A] = Future (a)
     override def flatMap[A, B] (fa: Future[A])(f: A => Future[B]): Future[B] = fa.flatMap (a => f (a))
     override def ap[A, B] (fa: Future[A])(ff: Future[A => B]): Future[B] = fa.flatMap (a => ff.map (f => f (a)))
   }
 
-  // todo, not sure how to magical define this, but i know if can be done
-  private def scalaFutureLoggingContextWriterTMonad (implicit m: Monad[Future]) = new Monad[WF] {
-    override def pure[A] (a: A): WF[A] = WriterT.value[Future, LoggingContext, A](a)
-    override def flatMap[A, B] (fa: WF[A])(f: A => WF[B]): WriterT[Future, LoggingContext, B] = fa.flatMap (a => f (a))
-    override def ap[A, B] (fa: WF[A])(ff: WF[A => B]): WF[B] = fa.flatMap (a => ff.map (f => f (a)))
-  }
-
   def printAndClear[T] (out: PrintStream, ec: ExecutionContext, onCrash: T)(c: CONTEXT[T]): CONTEXT[T] = {
     implicit val monadFuture: Monad[Future] = scalaFutureMonad (ec)
-    implicit val monadWriterT: Monad[WF] = scalaFutureLoggingContextWriterTMonad
-    import Extensions._
-
+    import zenith.context.Extensions._
     val ctxT = c.run.written
-    val vT = c.run.value.map {
-      case Right (v) => out.println ("Task in context completed successfully."); v
-      case Left (ex) =>
+    val vT = c.run.value.mapAll[T] {
+      case Success (s) => s match {
+        case Right (v) => out.println ("Task in context completed successfully."); v
+        case Left (ex) =>
+          import zenith.Extensions._
+          out.println (s"Task in context completed with failure, exception found within context:")
+          out.println (ex.stackTrace)
+          onCrash
+      }
+      case Failure (f) =>
         import zenith.Extensions._
-        out.println (s"Task in context completed with failure, exception found within context:")
-        out.println (ex.stackTrace)
+        out.println (s"Task in context completed with failed Future:")
+        out.println (f.stackTrace)
         onCrash
     }(ec)
 
@@ -195,7 +216,6 @@ object Context {
 
   def context (ec: ExecutionContext): zenith.Context[CONTEXT] = new zenith.Context[CONTEXT] {
     implicit val monadFuture: Monad[Future] = scalaFutureMonad (ec)
-    implicit val monadWriterT: Monad[WF] = scalaFutureLoggingContextWriterTMonad
 
     /** Logger */
     override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): CONTEXT[Unit] =
@@ -205,7 +225,7 @@ object Context {
     }
 
     /** Async */
-    override def liftScalaFuture[T] (expression: => Future[T]): CONTEXT[T] =  Try (expression) match {
+    override def liftScalaFuture[T] (expression: => Future[T]): CONTEXT[T] = Try (expression) match {
       case Success (s) => EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](s))
       case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
     }

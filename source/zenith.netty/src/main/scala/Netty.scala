@@ -195,24 +195,25 @@ private [this] final class NettyServerHandler[Z[_]: zenith.Context] (
     processFn: zenith.HttpRequest => Z[zenith.HttpResponse])(implicit logger: zenith.Logger[Z])
   extends SimpleChannelUpstreamHandler {
 
-  private val nettyErrorResponse = toNetty (zenith.HttpResponse.plain (500, "Internal Server Error"))
+  private def nettyErrorResponse (error: String, stack: String) = toNetty (zenith.HttpResponse.json (500, s"""{ "error": "$error", "stack": "$stack" }"""))
 
   override def messageReceived (ctx: ChannelHandlerContext, e: MessageEvent): Unit = {
     val request = e.getMessage.asInstanceOf[HttpRequest]
-    if (request.isChunked) ???
+    //if (request.isChunked) ???
     val sgRequest = toZenith (request)
     val zenithResponseZ: Z[zenith.HttpResponse] = processFn (sgRequest)
     zenith.Async[Z].transform (zenithResponseZ) {
       case Success (sgResponse) => toNetty (sgResponse)
       case Failure (t) => for {
         _ <- logger.error (s"[NettyServerHandler] Failed to process request $sgRequest")
-        _ <- logger.error (s"[NettyServerHandler] Sending standard failure response")
-      } yield nettyErrorResponse
+      } yield nettyErrorResponse ("Netty Error ~ Failed to process request", t.getStackTrace.mkString)
     }
     .map (e.getChannel.write (_).addListener (ChannelFutureListener.CLOSE))
   }
 
-  override def exceptionCaught (ctx: ChannelHandlerContext, e: ExceptionEvent): Unit = e.getChannel.close ()
+  override def exceptionCaught (ctx: ChannelHandlerContext, e: ExceptionEvent): Unit = {
+    e.getChannel.write (nettyErrorResponse ("Netty Error ~ Exception caught", e.getCause.getStackTrace.mkString)).addListener (ChannelFutureListener.CLOSE)
+  }
 }
 
 private [this] final class NettyServerPipelineFactory[Z[_]: zenith.Context] (

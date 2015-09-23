@@ -125,6 +125,7 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (buildSettings: _*)
     .settings (commonSettings: _*)
     .settings (publishSettings: _*)
+    .settings (libraryDependencies += "commons-io" % "commons-io" % "2.4")
     .settings (libraryDependencies += "com.github.mpilquist" %% "simulacrum" % "0.3.0")
     .settings (libraryDependencies += "io.circe" %% "circe-core" % "0.1.1")
     .settings (libraryDependencies += "io.circe" %% "circe-generic" % "0.1.1")
@@ -148,5 +149,7 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (buildSettings: _*)
     .settings (commonSettings: _*)
     .settings (publishSettings: _*)
+    .settings (autoCompilerPlugins := true)
+    .settings (addCompilerPlugin("org.spire-math" % "kind-projector" % "0.6.3" cross CrossVersion.binary))
     .dependsOn (zenith % "test->test;compile->compile")
 }

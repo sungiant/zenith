@@ -268,16 +268,17 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
   } yield result
 
   private def getBestPath[T[_]: Context] (requestPath: String) = ReaderT[Id, HttpServerConfig[T], Option[String]] { (config: HttpServerConfig[T]) =>
+    import org.apache.commons.io.FilenameUtils
     config.resourcePaths match {
       case Nil => None: Option[String]
-      case staticsPath :: tail =>
-        val reqPath = config.index.foldRight (requestPath) { (a, i) =>
-          ResourceUtils.resourceExists (staticsPath + "/" + i) match {
-            case false => a
-            case true => "/" + i
-          }
-        }
-        Option (staticsPath + reqPath)
+      case paths =>
+        val possiblePaths = paths.map (p => FilenameUtils.concat (p, requestPath))
+        val possibilities =
+          possiblePaths :::
+          possiblePaths.flatMap (p => config.index.map (i => FilenameUtils.concat (p, i))) :::
+          Nil
+
+        possibilities.find (ResourceUtils.resourceExists)
     }
   }
 

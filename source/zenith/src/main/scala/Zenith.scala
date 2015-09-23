@@ -20,7 +20,26 @@ import zenith.Extensions._
 /**
  * Context
  */
-@typeclass trait Context[Z[_]] extends Monad[Z] with Async[Z] with Logger[Z]
+trait Context[Z[_]] extends Monad[Z] with Async[Z] with Logger[Z]
+object Context {
+  implicit def apply[Z[_]] (implicit m: Monad[Z], a: Async[Z], l: Logger[Z]): Context[Z] = {
+    new Context[Z] with Monad[Z] with Async[Z] with Logger[Z] {
+      /** Logger */
+      override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): Z[Unit] = l.log (channel, level, message)
+      /** Async */
+      override def liftScalaFuture[T] (expression: => scala.concurrent.Future[T]): Z[T] = a.liftScalaFuture (expression)
+      override def future[T] (expression: => T): Z[T] = a.future (expression)
+      override def success[T] (expression: => T): Z[T] =  a.success (expression)
+      override def failure[T] (expression: => Throwable): Z[T] = a.failure (expression)
+      override def onComplete[T, X](v: Z[T], f: Try[T] => X): Unit = a.onComplete (v, f)
+      override def promise[T] (): Async.Promise[Z, T] = a.promise ()
+      /** Monad */
+      override def pure[A] (a: A): Z[A] = m.pure (a)
+      override def flatMap[A, B] (fa: Z[A])(f: A => Z[B]): Z[B] = m.flatMap(fa)(f)
+      override def ap[A, B] (fa: Z[A])(ff: Z[A => B]): Z[B] = m.ap (fa)(ff)
+    }
+  }
+}
 
 
 /**
@@ -350,12 +369,18 @@ trait ThrowableExtensions {
 
 object ResourceUtils {
   def guessContentTypeFromPath (path: String) = {
-    if (path.endsWith (".html") || path.endsWith (".html")) "text/html"
-    else if (path.endsWith (".css")) "text/css"
-    else if (path.endsWith (".js")) "text/javascript"
-    else if (path.endsWith (".csv")) "text/csv"
-    else if (path.endsWith (".xml")) "application/xml"
-    else if (path.endsWith (".json")) "application/json"
+    val p = path.toLowerCase
+    if (p.endsWith (".html") || p.endsWith (".html")) "text/html"
+    else if (p.endsWith (".css")) "text/css"
+    else if (p.endsWith (".js")) "text/javascript"
+    else if (p.endsWith (".csv")) "text/csv"
+    else if (p.endsWith (".xml")) "application/xml"
+    else if (p.endsWith (".json")) "application/json"
+    else if (p.endsWith (".png")) "image/png"
+    else if (p.endsWith (".jpg")) "image/jpg"
+    else if (p.endsWith (".jpeg")) "image/jpg"
+    else if (p.endsWith (".gif")) "image/gif"
+    else if (p.endsWith (".tga")) "image/tga"
     else "text/plain"
   }
 
