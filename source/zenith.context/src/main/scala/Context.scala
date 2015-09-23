@@ -192,12 +192,14 @@ object Context {
         case Left (ex) =>
           import zenith.Extensions._
           out.println (s"Task in context completed with failure, exception found within context:")
+          out.println (ex.getMessage)
           out.println (ex.stackTrace)
           onCrash
       }
       case Failure (f) =>
         import zenith.Extensions._
         out.println (s"Task in context completed with failed Future:")
+        out.println (f.getMessage)
         out.println (f.stackTrace)
         onCrash
     }(ec)

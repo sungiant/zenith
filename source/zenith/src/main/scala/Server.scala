@@ -204,7 +204,17 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
   def docs (): ServerDocumentation = ServerDocumentation (config.identifier, endpointGroups.flatMap (_.services).map (_.docs))
 
   def process (request: HttpRequest): Z[HttpResponse] = {
-    val z = processZ (request); config.contextHandler (z); z
+    Try {
+      val z = processZ (request)
+      config.contextHandler (z)
+      z
+    } match {
+      case Success (s) => s
+      case Failure (f) => for {
+        _ <- log (ZENITH, ERROR, s"User `process` function failed for request: ${f.getStackTrace.mkString}")
+        response <- Async[Z].success { HttpResponse (500) }
+      } yield response
+    }
   }
 
   def processZ (request: HttpRequest): Z[HttpResponse] = {
@@ -257,7 +267,7 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
   } yield result
 
   private def applyResponseMappers (resp: HttpResponse, responseMappers: List[ResponseMapper[Z]]): Z[HttpResponse] = for {
-    _ <- log (ZENITH, DEBUG, s"About to apply response mappers")
+    _ <- log (ZENITH, DEBUG, s"About to apply response mappers.")
     result <- responseMappers.foldLeft (success (resp)) { (acc, f) =>
       for {
         _ <- log (ZENITH, DEBUG, s"Sequencing response mapper:${f.name}")
@@ -267,24 +277,28 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
     }
   } yield result
 
-  private def getBestPath[T[_]: Context] (requestPath: String) = ReaderT[Id, HttpServerConfig[T], Option[String]] { (config: HttpServerConfig[T]) =>
-    import org.apache.commons.io.FilenameUtils
+  private def getBestPath (requestPath: String) = ReaderT[Z, HttpServerConfig[Z], Option[String]] { (config: HttpServerConfig[Z]) =>
     config.resourcePaths match {
-      case Nil => None: Option[String]
-      case paths =>
-        val possiblePaths = paths.map (p => FilenameUtils.concat (p, requestPath))
-        val possibilities =
-          possiblePaths :::
-          possiblePaths.flatMap (p => config.index.map (i => FilenameUtils.concat (p, i))) :::
-          Nil
-
-        possibilities.find (ResourceUtils.resourceExists)
+      case Nil => Async[Z].success { None: Option[String] }
+      case paths => for {
+        _ <- log (ZENITH, DEBUG, s"Resource paths: " + config.resourcePaths.mkString(", ") + ".")
+        possibilities <- Async[Z].success {
+          val possiblePaths = paths.map (p => p + requestPath)
+          requestPath.contains('.') match {
+            case true => possiblePaths
+            case false => possiblePaths ::: possiblePaths.flatMap (p => config.index.map (i => p + i)) ::: Nil
+          }
+        }
+        _ <- log (ZENITH, DEBUG, s"Possible paths for resource: " + possibilities.mkString(", ") + ".")
+        pathOpt <- Async[Z].success { possibilities.find (ResourceUtils.resourceExists) }
+        _ <- log (ZENITH, DEBUG, s"Best path: " + pathOpt.getOrElse ("None") + ".")
+      } yield pathOpt
     }
   }
 
   private def tryStaticResource (requestPath: String): Z[HttpResponse] = for {
     _ <- log (ZENITH, DEBUG, s"Working out best path.")
-    bestPathOpt = getBestPath[Z] (requestPath).run (config)
+    bestPathOpt <- getBestPath (requestPath).run (config)
     result <- bestPathOpt match {
       case None => for {
         _ <- log (ZENITH, DEBUG, s"No static resource path configured.")
@@ -300,7 +314,12 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
             val resource = getClass.getResource (bestPath)
             for {
               _ <- log (ZENITH, DEBUG, s"Found static resource at: ${resource.getPath}")
-              content = Source.fromFile (resource.getFile).getLines ().mkString ("\n")
+              content = Try {
+                Source.fromFile (resource.getFile).getLines ().mkString ("\n")
+              } match {
+                case Success (s) => s
+                case Failure (f) => "todo"
+              }
             } yield content match {
               case null | "" => Some (HttpResponse.plain (404, "Not Found"))
               case body =>

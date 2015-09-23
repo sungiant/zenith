@@ -387,7 +387,7 @@ object ResourceUtils {
   def resourceExists (resourcePath: String): Boolean = {
     try {
       val path = getClass.getResource (resourcePath).getFile
-      new java.io.File (path).exists
+      new java.io.File (path).isFile
     } catch { case _ : Throwable => false }
   }
 }
