@@ -12,7 +12,7 @@ package zenith.context
  * This package provides a functional implementation of a `Zenith Context`.
  *
  * This package is not required to use Zenith, rather it is simply an example of how one may choose
- * to implement a Zenith context.
+ * to implement a `Zenith Context`.
  *
  * The implementation uses Scala `Future` to provide the context's asynchronous functionality and a stack of
  * Monad Transformers to encapsulate all logging and errors.  This implementation could easily be changed to use a
