@@ -34,7 +34,7 @@ class ContextSpec extends Specification {
           _ <- Logger[Z].debug ("Log #2")
         } yield res
 
-      c.run.written.map (_ must_== LoggingContext (Log (None, DEBUG, "Log #1") :: Log (None, DEBUG, "Log #2") :: Nil)).await
+      c.toEither.written.map (_ must_== LoggingContext (Log (None, DEBUG, "Log #1") :: Log (None, DEBUG, "Log #2") :: Nil)).await
     }
     "correctly collect logs when an exception in thrown in an `Async[Z].success` expression" in {
       def failResponse: HttpResponse = throw new Exception ("Yuck")
@@ -44,7 +44,7 @@ class ContextSpec extends Specification {
         _ <- Logger[Z].debug ("Log #2")
       } yield res
 
-      c.run.written.map { x =>
+      c.toEither.written.map { x =>
         x must_== LoggingContext (Log (None, DEBUG, "Log #1") :: Nil)
       }.await
     }
