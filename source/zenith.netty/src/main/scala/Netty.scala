@@ -32,11 +32,11 @@ private object NettyUtils {
       val h = response.headers ()
       h.names ().asScala.map (key => (key, h.get (key))).toMap
     }
-    val body = response.getContent match {
-      case content if content.readable () => Some (content.toString (CharsetUtil.UTF_8))
-      case _ => None
+    val data = response.getContent match {
+      case content if content.readable () => content.toByteBuffer.array.toList
+      case _ => Nil
     }
-    zenith.HttpResponse (code, body, headers, version)
+    zenith.HttpResponse (code, data, headers, version)
   }
 
   def toZenith (request: HttpRequest): zenith.HttpRequest = {
@@ -51,8 +51,8 @@ private object NettyUtils {
       h.names ().asScala.map (key => (key, h.get (key))).toMap
     }
     val data = request.getContent match {
-      case content if content.readable () => Some (content.toString (CharsetUtil.UTF_8))
-      case _ => None
+      case content if content.readable () => content.toByteBuffer.array.toList
+      case _ => Nil
     }
     zenith.HttpRequest (method, requestUri, version, host, hostPort, headers, data)
   }
@@ -67,21 +67,32 @@ private object NettyUtils {
     netty.headers.set (USER_AGENT, "Netty 3.10.3.Final")
     netty.headers.set ("Client", "zenith-netty")
     request.headers.map { case (k, v) => netty.headers.set (k, v) }
-    request.data.foreach { body =>
-      val content = ChannelBuffers.copiedBuffer (body, CharsetUtil.UTF_8)
-      netty.headers.set (CONTENT_LENGTH, String.valueOf (content.readableBytes ()))
-      netty.setContent (content)
+    request.data match {
+      case Nil => netty
+      case data =>
+        val bytes = data.toArray
+        val content = ChannelBuffers.copiedBuffer (bytes)
+        netty.headers.set (CONTENT_LENGTH, String.valueOf (content.readableBytes ()))
+        netty.setContent (content)
+        netty
     }
-    netty
   }
 
   def toNetty (response: zenith.HttpResponse): HttpResponse = {
+    import HttpHeaders.Names._, HttpHeaders.Values._
     val netty = new DefaultHttpResponse (HttpVersion.valueOf (response.version), HttpResponseStatus.valueOf (response.code))
     netty.setChunked (false)
     response.headers.map { case (k, v) => netty.headers.set (k, v) }
-    netty.headers.set ("Server", "nettySG")
-    response.data.foreach (body => netty.setContent (ChannelBuffers.copiedBuffer (body, CharsetUtil.UTF_8)))
-    netty
+    netty.headers.set (SERVER, "nettySG")
+    response.data match {
+      case Nil => netty
+      case data =>
+        val bytes = data.toArray
+        val content = ChannelBuffers.copiedBuffer (bytes)
+        netty.headers.set (CONTENT_LENGTH, String.valueOf (content.readableBytes ()))
+        netty.setContent (content)
+        netty
+    }
   }
 }
 

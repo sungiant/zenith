@@ -196,7 +196,7 @@ final case class HttpRequest (
   // HTTP HEADER LINES
   headers: Map[String, String],
   // HTTP PAYLOAD
-  data: Option[String]) {
+  data: List[Byte]) {
   lazy val ip: Option[String] = headers.get ("X-Forwarded-For")
   lazy val cookies: Map[String, String] = {
     def removeLeadingAndTrailingWhitespace (s: String): String = s.replaceAll ("""^\s+(?m)""","")
@@ -217,18 +217,32 @@ final case class HttpRequest (
     case Array (_, query) => Some (query)
   }
 
+  lazy val charset = headers.get ("Content-Type").flatMap { ctStr =>
+    "charset=([A-Za-z0-9_+-]*);?".r.findFirstMatchIn (ctStr).flatMap (scala.util.matching.Regex.Match.unapply)
+  }.getOrElse ("UTF-8")
+  lazy val body = data match {
+    case null | Nil => None
+    case _ => Try {
+      val c = java.nio.charset.Charset.forName (charset)
+      new String (data.toArray, c)
+    }.toOption
+  }
+
   def toPrettyString = {
     s"--> $method $requestUri $version\n" +
     s"--> Host: $host port $hostPort" +
     headers
       .filterNot (_._1.toLowerCase == "host")
       .foldLeft ("") { (a, i) => s"\n--> ${i._1}: ${i._2}"} +
-    data.map (x => s"\n--> $x").getOrElse ("")
+      (ResourceUtils.isContentTypePrintable (charset) match {
+        case true => body.map (x => s"\n<-- $x").getOrElse ("")
+        case false => ""
+      })
   }
 }
 object HttpRequest {
   def createFromUrl (
-    url: String, method: String = "GET", headers: Option[Map[String, String]] = None, data: Option[String] = None)
+    url: String, method: String = "GET", headers: Option[Map[String, String]] = None, data: List[Byte] = Nil)
   : HttpRequest = {
     import scala.util.matching.Regex._
     val jURL = new java.net.URL (url)
@@ -278,21 +292,35 @@ object HttpRequest {
 /**
  * HttpResponse
  */
-final case class HttpResponse (code: Int, data: Option[String] = None, headers: Map[String, String] = Map (), version: String = "HTTP/1.1") {
+final case class HttpResponse (code: Int, data: List[Byte] = Nil, headers: Map[String, String] = Map (), version: String = "HTTP/1.1") {
+  lazy val charset = headers.get ("Content-Type").flatMap { ctStr =>
+    "charset=([A-Za-z0-9_+-]*);?".r.findFirstMatchIn (ctStr).flatMap (scala.util.matching.Regex.Match.unapply)
+  }.getOrElse ("UTF-8")
+  lazy val body = data match {
+    case null | Nil => None
+    case _ => Try {
+      val c = java.nio.charset.Charset.forName (charset)
+      new String (data.toArray, c)
+    }.toOption
+  }
   def toPrettyString =
     s"<-- $version $code ${HttpResponse.codes.getOrElse (code, "?")}" +
-    headers.foldLeft ("") { (a, i) => s"\n<-- ${i._1}: ${i._2}"} +
-    data.map (x => s"\n<-- $x").getOrElse ("")
+    headers.foldLeft ("") { (a, i) => s"\n<-- ${i._1}: ${i._2}" } +
+    (ResourceUtils.isContentTypePrintable (charset) match {
+      case true => body.map (x => s"\n<-- $x").getOrElse ("")
+      case false => ""
+    })
 }
 object HttpResponse {
-  def json (code: Int, body: String, headers: Map[String, String]) =        HttpResponse (code, Some (body), headers ++ Map ("Content-Type" -> "application/json;charset=utf-8"))
-  def xml (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, Some (body), headers ++ Map ("Content-Type" -> "application/xml;charset=utf-8"))
-  def js (code: Int, body: String, headers: Map[String, String]) =          HttpResponse (code, Some (body), headers ++ Map ("Content-Type" -> "text/javascript;charset=utf-8"))
-  def html (code: Int, body: String, headers: Map[String, String]) =        HttpResponse (code, Some (body), headers ++ Map ("Content-Type" -> "text/html;charset=utf-8"))
-  def css (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, Some (body), headers ++ Map ("Content-Type" -> "text/css;charset=utf-8"))
-  def csv (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, Some (body), headers ++ Map ("Content-Type" -> "text/csv;charset=utf-8"))
-  def plain (code: Int, body: String, headers: Map[String, String]) =       HttpResponse (code, Some (body), headers ++ Map ("Content-Type" -> "text/plain;charset=utf-8"))
-  def formEncoded (code: Int, body: String, headers: Map[String, String]) = HttpResponse (code, Some (body), headers ++ Map ("Content-Type" -> "text/xml;charset=utf-8"))
+  private val utf8 = java.nio.charset.Charset.forName ("UTF-8")
+  def json (code: Int, body: String, headers: Map[String, String]) =        HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "application/json;charset=utf-8"))
+  def xml (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "application/xml;charset=utf-8"))
+  def js (code: Int, body: String, headers: Map[String, String]) =          HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/javascript;charset=utf-8"))
+  def html (code: Int, body: String, headers: Map[String, String]) =        HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/html;charset=utf-8"))
+  def css (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/css;charset=utf-8"))
+  def csv (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/csv;charset=utf-8"))
+  def plain (code: Int, body: String, headers: Map[String, String]) =       HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/plain;charset=utf-8"))
+  def formEncoded (code: Int, body: String, headers: Map[String, String]) = HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/xml;charset=utf-8"))
 
   def json (code: Int, body: String): HttpResponse = json (code, body, Map ())
   def xml (code: Int, body: String): HttpResponse = xml (code, body, Map ())
@@ -371,17 +399,27 @@ object ResourceUtils {
   def guessContentTypeFromPath (path: String) = {
     val p = path.toLowerCase
     if (p.endsWith (".html") || p.endsWith (".html")) "text/html"
-    else if (p.endsWith (".css")) "text/css"
-    else if (p.endsWith (".js")) "text/javascript"
-    else if (p.endsWith (".csv")) "text/csv"
-    else if (p.endsWith (".xml")) "application/xml"
-    else if (p.endsWith (".json")) "application/json"
-    else if (p.endsWith (".png")) "image/png"
-    else if (p.endsWith (".jpg")) "image/jpg"
-    else if (p.endsWith (".jpeg")) "image/jpg"
-    else if (p.endsWith (".gif")) "image/gif"
-    else if (p.endsWith (".tga")) "image/tga"
+    else if (p.endsWith (".css"))   "text/css"
+    else if (p.endsWith (".js"))    "text/javascript"
+    else if (p.endsWith (".csv"))   "text/csv"
+    else if (p.endsWith (".xml"))   "application/xml"
+    else if (p.endsWith (".json"))  "application/json"
+    else if (p.endsWith (".png"))   "image/png"
+    else if (p.endsWith (".jpg"))   "image/jpg"
+    else if (p.endsWith (".jpeg"))  "image/jpg"
+    else if (p.endsWith (".gif"))   "image/gif"
+    else if (p.endsWith (".tga"))   "image/tga"
     else "text/plain"
+  }
+
+  def isContentTypePrintable (contentType: String) = contentType match {
+    case "text/css"
+       | "text/javascript"
+       | "text/csv"
+       | "application/xml"
+       | "application/json"
+       | "text/plain" => true
+    case _ => false
   }
 
   def resourceExists (resourcePath: String): Boolean = {

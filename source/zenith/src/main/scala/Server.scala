@@ -128,10 +128,27 @@ final case class HttpServiceEndpoint[Z[_]: Context] (parent: HttpService[Z], fn:
   def docs: EndpointDocumentation = EndpointDocumentation (id, description, method, path)
 
   def handler = new PartialFunction[HttpRequest, Z[HttpResponse]] {
-    private def shouldHandleRequest (request: HttpRequest): Boolean = path == request.path && method.toString == request.method
-    def isDefinedAt (request: HttpRequest) = shouldHandleRequest (request)
+    def isDefinedAt (request: HttpRequest): Boolean = request.method match {
+      case x if method.toString == x =>
+        path.r.findFirstMatchIn (request.path) match {
+          case Some (m) => true
+          case None => false
+        }
+      case _ => false
+    }
+
     def apply (request: HttpRequest): Z[HttpResponse] = {
-      val x = fn.invoke (parent, request)
+      val x = path.r.findFirstMatchIn (request.path) match {
+        case Some (m) =>
+          m.groupCount match {
+            case 0 => fn.invoke (parent, request)
+            case n =>
+              val extraArgs = (1 to n).map (i => m.group (i)).toList
+              fn.invoke (parent, request :: extraArgs: _*)
+          }
+        case None => new Exception
+      }
+
       val a = Try { x.asInstanceOf[Z[HttpResponse]] }.toOption
       for {
         _ <- logger.log (ZENITH, DEBUG, s"executing handler for ${request.path}")
@@ -211,8 +228,8 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
     } match {
       case Success (s) => s
       case Failure (f) => for {
-        _ <- log (ZENITH, ERROR, s"User `process` function failed for request: ${f.getStackTrace.mkString}")
-        response <- Async[Z].success { HttpResponse (500) }
+        _ <- log (ZENITH, ERROR, s"User `process` function failed for request: ${f.getStackTrace.mkString ("\n  ")}")
+        response <- Async[Z].success { HttpResponse.plain (500) }
       } yield response
     }
   }
@@ -222,16 +239,16 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
     for {
       _ <- log (ZENITH, INFO, s"Received request:\n${request.toPrettyString}")
       reqPath = request.path
-      _ <- log (ZENITH, DEBUG, s"Looking for handler for ${request.method} $reqPath")
+      _ <- log (ZENITH, DEBUG, s"Looking for handler function for ${request.method} $reqPath")
       result <- endpointGroups
         .map (x => (x, x.services.collectFirst { case s if s.handler.isDefinedAt (request) => s }))
         .collectFirst { case (e, s) if s.isDefined => (e, s.get) } match {
         case None => for {
+          _ <- log (ZENITH, DEBUG, s"No suitable handler function found.")
           result <- tryStaticResource (reqPath)
-          _ <- log (ZENITH, DEBUG, s"No suitable handler found.")
         } yield result
         case Some ((endpointGroup, service)) => for {
-          _ <- log (ZENITH, DEBUG, s"Found handler in service: ${service.id}")
+          _ <- log (ZENITH, DEBUG, s"Found handler function in service: ${service.id}")
           filteredRequest <- applyRequestFilters (request, endpointGroup.requestFilters)
           response <- filteredRequest match {
             case Left (bad) => for {
@@ -314,24 +331,24 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
             val resource = getClass.getResource (bestPath)
             for {
               _ <- log (ZENITH, DEBUG, s"Found static resource at: ${resource.getPath}")
-              content = Try {
-                Source.fromFile (resource.getFile).getLines ().mkString ("\n")
-              } match {
-                case Success (s) => s
-                case Failure (f) => "todo"
+              bytes <- Async[Z].future {
+                val bis = new java.io.BufferedInputStream(new java.io.FileInputStream(resource.getFile))
+                val data = Stream.continually (bis.read).takeWhile(-1 !=).map(_.toByte).toList
+                bis.close ()
+                data
               }
-            } yield content match {
-              case null | "" => Some (HttpResponse.plain (404, "Not Found"))
-              case body =>
+            } yield bytes match {
+              case null | Nil => Some (HttpResponse.plain (404, "Not Found"))
+              case content =>
                 val contentType = ResourceUtils.guessContentTypeFromPath (bestPath)
-                Option (HttpResponse (200, Some (body), Map ("Content-Type" -> contentType)))
+                Option (HttpResponse (200, content, Map ("Content-Type" -> contentType)))
             }
         }
       } yield result
     }
   } yield result match {
     case Some (response) => response
-    case None => HttpResponse (404)
+    case None => HttpResponse.plain (404)
   }
 }
 
@@ -341,7 +358,7 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
 
 final class DocumentationService[Z[_]: Context] (docs: () => ServerDocumentation) extends HttpService[Z] {
   @endpoint
-  @path ("/documentation")
+  @path ("^/documentation$")
   @method (HttpMethod.GET)
   @description ("Provides documentation for the API.")
   def docs (request: HttpRequest): Z[HttpResponse] = {
