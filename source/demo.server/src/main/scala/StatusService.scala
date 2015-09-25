@@ -12,7 +12,7 @@ import scala.io.StdIn
 
 final class StatusService[Z[_]: Context] () extends HttpService[Z] {
   @endpoint
-  @path ("/status")
+  @path ("^/status$")
   @method (HttpMethod.GET)
   @description ("Provides information about the current health of the service.")
   def status (request: HttpRequest): Z[HttpResponse] = for {
@@ -22,7 +22,7 @@ final class StatusService[Z[_]: Context] () extends HttpService[Z] {
   } yield r
 
   @endpoint
-  @path ("/stats")
+  @path ("^/stats$")
   @method (HttpMethod.GET)
   @description ("Provides statistics about the server.")
   def stats (request: HttpRequest): Z[HttpResponse] = {

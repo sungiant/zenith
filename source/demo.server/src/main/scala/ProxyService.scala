@@ -23,11 +23,11 @@ import io.circe.generic.auto._
 final class ProxyService[Z[_]: Context] (httpClient: HttpClient[Z]) extends HttpService[Z] {
 
   @endpoint
-  @path ("/proxy")
+  @path ("^/proxy$")
   @method (HttpMethod.POST)
   @description ("Proxies a http request.")
   def proxy (request: HttpRequest): Z[HttpResponse] = for {
-    r <- request.data.flatMap (decode[ProxyRequest](_).toOption) match {
+    r <- request.body.flatMap (decode[ProxyRequest](_).toOption) match {
       case None => for {
         _ <- Logger[Z].debug ("Failed to JSON decode ProxyRequest")
         r <- Async[Z].success (HttpResponse.plain (400))

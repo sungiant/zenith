@@ -23,8 +23,9 @@ sealed class CheckStatus[Z[_]: Context] (endpoint: String)
   @description ("`all good` message exists in response body")
   def allGood (response: HttpResponse): ReaderT[Z, RestClientState, Result] = ReaderT { _ =>
     Async[Z].success {
-      response.data match {
-        case Some(body) => body.contains("all good @ ") match {
+      response.body match {
+        case Some (body) =>
+          body.contains("all good @ ") match {
           case true => Passed
           case false => Failed
         }

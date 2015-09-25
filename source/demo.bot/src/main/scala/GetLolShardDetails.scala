@@ -8,6 +8,7 @@ import cats.data._
 sealed class GetLolShardDetails[Z[_]: Context] (endpoint: String)
   extends ActionT [Z, RestClientState, ProxyRequest, ShardStatus] {
   import io.circe.jawn._, io.circe.syntax._
+  private val utf8 = java.nio.charset.Charset.forName ("UTF-8")
   val request: ReaderT[Z, RestClientState, ProxyRequest] = ReaderT { state =>
     state.regionID match {
       case None =>
@@ -15,8 +16,8 @@ sealed class GetLolShardDetails[Z[_]: Context] (endpoint: String)
       case Some (targetRegion) => Async[Z].success (ProxyRequest (s"http://status.leagueoflegends.com/shards/$targetRegion", "GET"))
     }
   }
-  def requestMapper (p: ProxyRequest) = HttpRequest.createFromUrl (s"$endpoint/proxy", "POST", None, Some (p.asJson.noSpaces))
-  def responseMapper (r: HttpResponse) = r.data.flatMap { d => decode[ShardStatus](d).toOption }
+  def requestMapper (p: ProxyRequest) = HttpRequest.createFromUrl (s"$endpoint/proxy", "POST", None, p.asJson.noSpaces.getBytes (utf8).toList)
+  def responseMapper (r: HttpResponse) = r.body.flatMap { d => decode[ShardStatus](d).toOption }
 
   @assertion
   @description ("Check that target region has no active incidents.")

@@ -1,7 +1,7 @@
 package demo.bot
 
 import demo._
-import zenith._, zenith.context._, zenith.bot._, zenith.client._, zenith.netty._
+import zenith._, zenith.context.Context, zenith.bot._, zenith.client._, zenith.netty._
 import cats._, cats.data._, cats.state._, cats.std.all._
 import scala.util.{Success, Failure}
 
@@ -13,7 +13,7 @@ object Program {
 
     val userES = Executors.newFixedThreadPool (8)
     val userEC = ExecutionContext.fromExecutorService (userES)
-    implicit val context: Context[C] = Context.context (userEC)
+    implicit val context = Context.context (userEC)
 
     val clientProvider = new NettyHttpClientProvider[C]
     val client = clientProvider.create (HttpClientConfig ())
@@ -25,8 +25,9 @@ object Program {
       val endpoint = "http://127.0.0.1:7777"
       val actions: List [Action[C, RestClientState]] =
         new CheckStatus[C] (endpoint) ::
-          new GetLolShardMeta[C] (endpoint, "EU West") ::
-          new GetLolShardDetails[C] (endpoint) :: Nil
+        new GetLolShardMeta[C] (endpoint, "EU West") ::
+        new GetLolShardDetails[C] (endpoint) ::
+        Nil
     }
     val resultF = bot.run (client, contextHandler)
 

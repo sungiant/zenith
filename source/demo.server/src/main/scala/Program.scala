@@ -3,7 +3,7 @@ package demo.server
 import demo._
 
 import zenith._
-import zenith.context._
+import zenith.context.Context
 import zenith.client._
 import zenith.server._
 import zenith.netty._
@@ -17,7 +17,7 @@ object Program {
 
   val userES = Executors.newFixedThreadPool (8)
   val userEC = ExecutionContext.fromExecutorService (userES)
-  implicit val context: Context[C] = Context.context (userEC)
+  implicit val context = zenith.context.Context.context (userEC)
 
   val clientProvider = new NettyHttpClientProvider[C]
   val serverProvider = new NettyHttpServerProvider[C]
@@ -32,8 +32,8 @@ object Program {
       val identifier = name
       val port = p
       val serviceGroups = HttpServiceGroup[C](statusService :: proxyService :: Nil) :: Nil
-      override val resourcePaths = "/" :: Nil
-      override def contextHandler (z: C[HttpResponse]) = Context.printAndClear[HttpResponse] (System.out, userEC, HttpResponse.plain (500)) (z)
+      override val resourcePaths = "/web" :: Nil
+      override def contextHandler (z: C[HttpResponse]) = zenith.context.Context.printAndClear[HttpResponse] (System.out, userEC, HttpResponse.plain (500)) (z)
     }
   }
 
