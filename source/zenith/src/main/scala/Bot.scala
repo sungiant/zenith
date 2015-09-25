@@ -178,7 +178,10 @@ object ActionT {
       result <- httpExchange.result match {
         case Left (error) => StateT.pure[Z, ClientState, Result] (Failed)
         case Right (httpResponse) => action.responseMapper (httpResponse) match {
-          case None => StateT.pure[Z, ClientState, Result] (Failed)
+          case None => for {
+            // todo: sequence error log here
+            r <- StateT.pure[Z, ClientState, Result] (Failed)
+          } yield r
           case Some (response) => runAssertions (action, response)
         }
       }
