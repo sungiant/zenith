@@ -174,6 +174,43 @@ final case class HttpExchange (request: HttpRequest, result: Throwable Either Ht
 
 
 /**
+ * HttpCommon
+ *
+ * Common functions between `HttpRequest` and `HttpResponse`.
+ */
+trait HttpCommon {
+  def headers: Map[String, String]
+  def data: List[Byte]
+  def version: String
+
+  lazy val contentType = headers.get ("Content-Type")
+  lazy val charset = contentType.flatMap { ctStr =>
+    "charset=([A-Za-z0-9_+-]*);?".r
+      .findFirstMatchIn (ctStr)
+      .flatMap (scala.util.matching.Regex.Match.unapply)
+      .map (_.toUpperCase)
+      .flatMap (x => Try { java.nio.charset.Charset.forName (x) }.toOption)
+  }.getOrElse (java.nio.charset.Charset.forName ("UTF-8"))
+  lazy val body = data match {
+    case null | Nil => None
+    case _ => Try { new String (data.toArray, charset) }.toOption
+  }
+  lazy val cookies: Map[String, String] = {
+    def removeLeadingAndTrailingWhitespace (s: String): String = s.replaceAll ("""^\s+(?m)""","")
+    headers.get ("Cookie").map { cookieString =>
+      cookieString.split (';').toList.map (removeLeadingAndTrailingWhitespace).map { rawCookie =>
+        val split = rawCookie.split ('=').toList
+        split match {
+          case one :: two :: Nil => Some ((one, two))
+          case _ => None
+        }
+      }
+    }.map (z => z.collect { case Some (x) => x }.toMap).getOrElse (Map ())
+  }
+}
+
+
+/**
  * HttpRequest
  *
  * HTTP REQUEST HEADER FORMAT
@@ -196,49 +233,24 @@ final case class HttpRequest (
   // HTTP HEADER LINES
   headers: Map[String, String],
   // HTTP PAYLOAD
-  data: List[Byte]) {
+  data: List[Byte]) extends HttpCommon {
   lazy val ip: Option[String] = headers.get ("X-Forwarded-For")
-  lazy val cookies: Map[String, String] = {
-    def removeLeadingAndTrailingWhitespace (s: String): String = s.replaceAll ("""^\s+(?m)""","")
-    headers.get ("Cookie").map { cookieString =>
-      cookieString.split (';').toList.map (removeLeadingAndTrailingWhitespace).map { rawCookie =>
-        val split = rawCookie.split ('=').toList
-        split match {
-          case one :: two :: Nil => Some ((one, two))
-          case _ => None
-        }
-      }
-    }.map (z => z.collect { case Some (x) => x }.toMap).getOrElse (Map ())
-  }
   lazy val path = requestUri.split ("\\?").head
-
   lazy val queryString = requestUri.split ('?') match {
     case Array (_) => None
     case Array (_, query) => Some (query)
   }
 
-  lazy val charset = headers.get ("Content-Type").flatMap { ctStr =>
-    "charset=([A-Za-z0-9_+-]*);?".r.findFirstMatchIn (ctStr).flatMap (scala.util.matching.Regex.Match.unapply)
-  }.getOrElse ("UTF-8")
-  lazy val body = data match {
-    case null | Nil => None
-    case _ => Try {
-      val c = java.nio.charset.Charset.forName (charset)
-      new String (data.toArray, c)
-    }.toOption
-  }
-
-  def toPrettyString = {
+  def toPrettyString =
     s"--> $method $requestUri $version\n" +
     s"--> Host: $host port $hostPort" +
     headers
       .filterNot (_._1.toLowerCase == "host")
       .foldLeft ("") { (a, i) => s"\n--> ${i._1}: ${i._2}"} +
-      (ResourceUtils.isContentTypePrintable (charset) match {
+      (contentType.map (ResourceUtils.isContentTypePrintable).getOrElse (false) match {
         case true => body.map (x => s"\n<-- $x").getOrElse ("")
         case false => ""
       })
-  }
 }
 object HttpRequest {
   def createFromUrl (
@@ -292,24 +304,18 @@ object HttpRequest {
 /**
  * HttpResponse
  */
-final case class HttpResponse (code: Int, data: List[Byte] = Nil, headers: Map[String, String] = Map (), version: String = "HTTP/1.1") {
-  lazy val charset = headers.get ("Content-Type").flatMap { ctStr =>
-    "charset=([A-Za-z0-9_+-]*);?".r.findFirstMatchIn (ctStr).flatMap (scala.util.matching.Regex.Match.unapply)
-  }.getOrElse ("UTF-8")
-  lazy val body = data match {
-    case null | Nil => None
-    case _ => Try {
-      val c = java.nio.charset.Charset.forName (charset)
-      new String (data.toArray, c)
-    }.toOption
-  }
+final case class HttpResponse (
+  code: Int,
+  data: List[Byte] = Nil,
+  headers: Map[String, String] = Map (),
+  version: String = "HTTP/1.1") extends HttpCommon {
   def toPrettyString =
     s"<-- $version $code ${HttpResponse.codes.getOrElse (code, "?")}" +
-    headers.foldLeft ("") { (a, i) => s"\n<-- ${i._1}: ${i._2}" } +
-    (ResourceUtils.isContentTypePrintable (charset) match {
-      case true => body.map (x => s"\n<-- $x").getOrElse ("")
-      case false => ""
-    })
+      headers.foldLeft ("") { (a, i) => s"\n<-- ${i._1}: ${i._2}" } +
+      (contentType.map (ResourceUtils.isContentTypePrintable).getOrElse (false) match {
+        case true => body.map (x => s"\n<-- $x").getOrElse ("")
+        case false => ""
+      })
 }
 object HttpResponse {
   private val utf8 = java.nio.charset.Charset.forName ("UTF-8")
@@ -413,12 +419,12 @@ object ResourceUtils {
   }
 
   def isContentTypePrintable (contentType: String) = contentType match {
-    case "text/css"
-       | "text/javascript"
-       | "text/csv"
-       | "application/xml"
-       | "application/json"
-       | "text/plain" => true
+    case x if x.contains ("text/css")
+       || x.contains ("text/javascript")
+       || x.contains ("text/csv")
+       || x.contains ("application/xml")
+       || x.contains ("application/json")
+       || x.contains ("text/plain") => true
     case _ => false
   }
 
