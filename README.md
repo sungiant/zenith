@@ -25,6 +25,22 @@ libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.0.5"
 libraryDependencies += "io.github.sungiant" %% "zenith-context" % "0.0.5"
 ```
 
+## Architecture
+
+Zenith is achitected around both a generic network layer and a generic sequencing context.  This make it possible to write a web service using Zenith that allows for easily changing both the choice of network layer implementation (Netty, Akka HTTP...) and the choice of sequencing context (Scala Future, Twitter Future, Akka Future + WriterT Monad Transformer) simply by swapping in and out modules.
+
+Why is Zenith's generic architecture cool?  It makes it easy to write a webservice against Zenith with the dependences you want, if you decide that you want your project to only have dependencies on Akka HTTP, you can do that, simply switch out the `zenith-netty` package for your own implementation of Zenith's abstract network layer using Akka HTTP.  Zenith doesn't impose such choices upon your project. 
+
+Zenith is written in a functional style; the codebase does not include a single instance of Scala's `var` keyword.  The core part of Zenith is built atop:
+
+ * [cats](https://github.com/non/kind-projector) for functional patterns
+ * [simulacrum](https://github.com/mpilquist/simulacrum) for minimizing typeclass boilerplate
+ * [circe](https://github.com/typelevel/machinist) for functional JSON
+ * ...and of course a pure functional subset of the Scala language.
+
+# Alternatives
+
+* [unfiltered](http://unfiltered.databinder.net/Unfiltered.html) a toolkit for servicing HTTP requests
 
 ## License
 
