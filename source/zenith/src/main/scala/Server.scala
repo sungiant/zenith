@@ -16,7 +16,6 @@ import scala.util.{Try, Success, Failure}
 import cats._
 import cats.data._
 import org.joda.time.{DateTimeZone, DateTime}
-import scala.io.Source
 import cats.Monad.ops._
 import java.lang.reflect.{Method => ReflectedMethod}
 
@@ -50,11 +49,6 @@ abstract class HttpServerConfig[Z[_]: Context] {
   val resourcePaths: List[String] = Nil
   val index: List[String] = "index.html" :: "index.htm" :: Nil
   val documentationPlugin: Boolean = true
-
-  def contextHandler (a: Z[HttpResponse]): Z[HttpResponse] = Async[Z].transform (a) {
-    case Failure (ex) => HttpResponse.plain (500, ex.getMessage)
-    case Success (ok) => ok
-  }
 }
 
 final case class HttpServiceGroup[Z[_]: Context] (
@@ -221,23 +215,21 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
   def docs (): ServerDocumentation = ServerDocumentation (config.identifier, endpointGroups.flatMap (_.services).map (_.docs))
 
   def process (request: HttpRequest): Z[HttpResponse] = {
-    Try {
-      val z = processZ (request)
-      config.contextHandler (z)
-      z
-    } match {
+    val result = Try { processZ (request) } match {
       case Success (s) => s
       case Failure (f) => for {
         _ <- log (ZENITH, ERROR, s"User `process` function failed for request: ${f.getStackTrace.mkString ("\n  ")}")
         response <- Async[Z].success { HttpResponse.plain (500) }
       } yield response
     }
+
+    Logger[Z].printAndClear (System.out, result, HttpResponse.plain (500, "Something is wrong..."))
   }
 
   def processZ (request: HttpRequest): Z[HttpResponse] = {
     val startTime = DateTime.now (DateTimeZone.UTC).getMillis
     for {
-      _ <- log (ZENITH, INFO, s"Received request:\n${request.toPrettyString}")
+      _ <- log (ZENITH, INFO, s"Received request @ $startTime:\n${request.toPrettyString}")
       reqPath = request.path
       _ <- log (ZENITH, DEBUG, s"Looking for handler function for ${request.method} $reqPath")
       result <- endpointGroups
@@ -261,8 +253,9 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
             } yield result
           }
           mappedResponse <- applyResponseMappers (response, endpointGroup.responseMappers)
-          _ <- log (ZENITH, INFO, s"Generated response:\n${response.toPrettyString}")
-          processingTime = DateTime.now (DateTimeZone.UTC).getMillis - startTime
+          endTime = DateTime.now (DateTimeZone.UTC).getMillis
+          _ <- log (ZENITH, INFO, s"Generated response @$endTime:\n${response.toPrettyString}")
+          processingTime = endTime - startTime
           _ <- log (ZENITH, INFO, s"Processing time: ${processingTime}ms")
         } yield mappedResponse
       }
@@ -307,7 +300,7 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
           }
         }
         _ <- log (ZENITH, DEBUG, s"Possible paths for resource: " + possibilities.mkString(", ") + ".")
-        pathOpt <- Async[Z].success { possibilities.find (ResourceUtils.resourceExists) }
+        pathOpt <- Async[Z].success { possibilities.find (ResourceUtils.getFileHandle (_).isDefined) }
         _ <- log (ZENITH, DEBUG, s"Best path: " + pathOpt.getOrElse ("None") + ".")
       } yield pathOpt
     }
@@ -323,25 +316,43 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
       } yield result
       case Some (bestPath) => for {
         _ <- log (ZENITH, DEBUG, s"Looking for static resource: $bestPath")
-        result <- ResourceUtils.resourceExists (bestPath) match {
-          case false => for {
+        result <- ResourceUtils.getFileHandle (bestPath) match {
+          case None => for {
             _ <- log (ZENITH, DEBUG, s"No suitable static resource found for: $requestPath")
           } yield None: Option[HttpResponse]
-          case true =>
-            val resource = getClass.getResource (bestPath)
-            for {
-              _ <- log (ZENITH, DEBUG, s"Found static resource at: ${resource.getPath}")
-              bytes <- Async[Z].future {
-                val bis = new java.io.BufferedInputStream(new java.io.FileInputStream(resource.getFile))
-                val data = Stream.continually (bis.read).takeWhile(-1 !=).map(_.toByte).toList
-                bis.close ()
-                data
+          case Some (fileHandle) => for {
+            _ <- log (ZENITH, DEBUG, s"Found static resource at PATH: ${fileHandle.path}, URL: ${fileHandle.url}")
+            bytes <- ResourceUtils.getBytes[Z](fileHandle)
+          } yield bytes match {
+            case None | Some (Nil) => Some (HttpResponse.plain (404, "Not Found"))
+            case Some (content) =>
+              import java.text.SimpleDateFormat
+              import java.util.Calendar
+              import java.util.GregorianCalendar
+              import java.util.Locale
+              import java.util.TimeZone
+              val HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz"
+              val HTTP_CACHE_SECONDS = 60 * 60 * 3
+
+              val time = new GregorianCalendar ()
+              time.add(Calendar.SECOND, HTTP_CACHE_SECONDS)
+              val dateFormatter = new SimpleDateFormat (HTTP_DATE_FORMAT, Locale.US)
+              dateFormatter.setTimeZone (TimeZone.getDefault)
+              val contentType = ResourceUtils.guessContentTypeFromPath (bestPath)
+
+              val headers = ResourceUtils.isContentTypePrintable (bestPath) match {
+                case true => Map (
+                  "Content-Type" -> contentType,
+                  "Date" -> dateFormatter.format (time.getTime)
+                )
+                case false => Map (
+                  "Content-Type" -> contentType,
+                  "Cache-Control" -> s"max-age=$HTTP_CACHE_SECONDS",
+                  "Expires" -> dateFormatter.format (time.getTime),
+                  "Date" -> dateFormatter.format (time.getTime)
+                )
               }
-            } yield bytes match {
-              case null | Nil => Some (HttpResponse.plain (404, "Not Found"))
-              case content =>
-                val contentType = ResourceUtils.guessContentTypeFromPath (bestPath)
-                Option (HttpResponse (200, content, Map ("Content-Type" -> contentType)))
+              Option (HttpResponse (200, content, headers))
             }
         }
       } yield result

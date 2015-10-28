@@ -155,55 +155,57 @@ object Context {
     override def ap[A, B] (fa: Future[A])(ff: Future[A => B]): Future[B] = fa.flatMap (a => ff.map (f => f (a)))
   }
 
-  def printAndClear[T] (out: PrintStream, ec: ExecutionContext, onCrash: T)(c: CONTEXT[T]): CONTEXT[T] = {
-    implicit val monadFuture: Monad[Future] = scalaFutureMonad (ec)
-    import zenith.context.Extensions._
-    val ctxT = c.toEither.written
-    val vT = c.toEither.value.mapAll[T] {
-      case Success (s) => s match {
-        case Right (v) => out.println ("Task in context completed successfully."); v
-        case Left (ex) =>
-          import zenith.Extensions._
-          out.println (s"Task in context completed with failure, exception found within context:")
-          out.println (ex.getMessage)
-          out.println (ex.stackTrace)
-          onCrash
-      }
-      case Failure (f) =>
-        import zenith.Extensions._
-        out.println (s"Task in context completed with failed Future:")
-        out.println (f.getMessage)
-        out.println (f.stackTrace)
-        onCrash
-    }(ec)
-
-    val f = ctxT.flatMap { ctx =>
-      vT.map { v =>
-        ctx.logs.foreach { x => out.printLog (x.channel, x.level, x.message) }
-        out.println ()
-        v
-      }(ec)
-    }(ec)
-
-    // clear all exceptions and logs
-    XorT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](f))
-  }
-
   def context (ec: ExecutionContext): zenith.Context[CONTEXT] = new zenith.Context[CONTEXT] {
     implicit val monadFuture: Monad[Future] = scalaFutureMonad (ec)
 
     /** Logger */
+
+    override def printAndClear[T](out: PrintStream, c: CONTEXT[T], onCrash: T): CONTEXT[T] = {
+      import zenith.context.Extensions._
+      val ctxT = c.toEither.written
+      val vT = c.toEither.value.mapAll[T] {
+        case Success (s) => s match {
+          case Right (v) => out.println ("Task in context completed successfully."); v
+          case Left (ex) =>
+            import zenith.Extensions._
+            out.println (s"Task in context completed with failure, exception found within context:")
+            out.println (ex.getMessage)
+            out.println (ex.stackTrace)
+            onCrash
+        }
+        case Failure (f) =>
+          import zenith.Extensions._
+          out.println (s"Task in context completed with failed Future:")
+          out.println (f.getMessage)
+          out.println (f.stackTrace)
+          onCrash
+      }(ec)
+
+      val f = ctxT.flatMap { ctx =>
+        vT.map { v =>
+          ctx.logs.foreach { x => out.printLog (x.channel, x.level, x.message) }
+          out.println ()
+          v
+        }(ec)
+      }(ec)
+
+      // clear all exceptions and logs
+      XorT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](f))
+    }
+
     override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): CONTEXT[Unit] = {
-      println (s"$channel $level $message")
-      Try {
-        LoggingContext.log (channel, level, message)
-      } match {
+      Try { LoggingContext.log (channel, level, message) } match {
         case Success (s) => XorT.right[WF, Throwable, Unit](WriterT.put[Future, LoggingContext, Unit](())(s))
         case Failure (f) => XorT.left[WF, Throwable, Unit](WriterT.value[Future, LoggingContext, Throwable](f))
       }
     }
 
     /** Async */
+    override def await[T](v: CONTEXT[T], seconds: Int): Either[Throwable, T] = {
+      import scala.concurrent.duration._
+      scala.concurrent.Await.result (v.toEither.value, seconds.seconds)
+    }
+
     override def liftScalaFuture[T] (expression: => Future[T]): CONTEXT[T] = Try (expression) match {
       case Success (s) => XorT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](s))
       case Failure (f) => XorT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))

@@ -12,28 +12,7 @@ import sbtrelease.ReleasePlugin.autoImport._
 import com.typesafe.sbt.SbtPgp.autoImport._
 
 object SbtBuild extends Build
-  with SbtCommonConfig with SbtZenithBuild {
-  lazy val default = project
-    .in (file ("."))
-    .settings (initialCommands in console :=
-      """
-        | println ("Zenith REPL")
-        | import java.util.UUID
-        | import org.joda.time._
-        | import cats._
-        | import cats.std.all._
-        | import zenith._
-        | import zenith.netty._
-        | import zenith.context._
-      """.stripMargin)
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (noPublishSettings: _*)
-    .dependsOn (zenith % "test->test;compile->compile")
-    .dependsOn (zenith_netty % "test->test;compile->compile")
-    .dependsOn (zenith_context % "test->test;compile->compile")
-    .aggregate (zenith, zenith_netty, zenith_context)
-}
+  with SbtCommonConfig with SbtZenithBuild
 
 trait SbtCommonConfig {
   lazy val compilerOptions = Seq (

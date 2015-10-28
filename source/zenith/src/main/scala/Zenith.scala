@@ -12,7 +12,7 @@ import simulacrum._
 import scala.util.{Try, Success, Failure}
 import cats.Monad
 import zenith.Extensions._
-
+import java.io.PrintStream
 
 /** CONTEXTUAL TYPES **/
 /**********************************************************************************************************************/
@@ -25,8 +25,10 @@ object Context {
   implicit def apply[Z[_]] (implicit m: Monad[Z], a: Async[Z], l: Logger[Z]): Context[Z] = {
     new Context[Z] with Monad[Z] with Async[Z] with Logger[Z] {
       /** Logger */
+      override def printAndClear[T](out: PrintStream, v: Z[T], onCrash: T): Z[T] = l.printAndClear (out, v, onCrash)
       override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): Z[Unit] = l.log (channel, level, message)
       /** Async */
+      override def await[T](v: Z[T], seconds: Int): Either[Throwable, T] = a.await (v, seconds)
       override def liftScalaFuture[T] (expression: => scala.concurrent.Future[T]): Z[T] = a.liftScalaFuture (expression)
       override def future[T] (expression: => T): Z[T] = a.future (expression)
       override def success[T] (expression: => T): Z[T] =  a.success (expression)
@@ -47,6 +49,7 @@ object Context {
  */
 @typeclass trait Logger[Z[_]] {
   import Logger._
+  def printAndClear[T](out: PrintStream, v: Z[T], onCrash: T): Z[T]
   def log (channel: => Option[String], level: => Level, message: => String): Z[Unit]
 
   /* HELPERS */
@@ -86,6 +89,7 @@ object Logger {
  */
 @typeclass trait Async[Z[_]] {
 
+  def await[T](v: Z[T], seconds: Int): Either[Throwable, T]
   def promise[T](): Async.Promise[Z, T]
   def future[T] (expression: => T): Z[T]
   def success[T] (expression: => T): Z[T]
@@ -401,6 +405,8 @@ trait ThrowableExtensions {
 /** UTILS */
 /**********************************************************************************************************************/
 
+case class FileHandle (path: String, url: java.net.URL, inputStream: java.io.InputStream)
+
 object ResourceUtils {
   def guessContentTypeFromPath (path: String) = {
     val p = path.toLowerCase
@@ -428,10 +434,24 @@ object ResourceUtils {
     case _ => false
   }
 
-  def resourceExists (resourcePath: String): Boolean = {
+  def getFileHandle (path: String): Option[FileHandle] = {
+    path.endsWith("/") match {
+      case true => None
+      case false => (
+        Try (getClass.getResource (path)).toOption,
+        Try (getClass.getResourceAsStream (path)).toOption) match {
+        case (Some (url), Some (inputStream)) => Some (FileHandle (path, url, inputStream))
+        case _ => None
+      }
+    }
+  }
+
+  def getBytes[Z[_]: Context](fileHandle: FileHandle): Z[Option[List[Byte]]] = Async[Z].future {
     try {
-      val path = getClass.getResource (resourcePath).getFile
-      new java.io.File (path).isFile
-    } catch { case _ : Throwable => false }
+      val bis = new java.io.BufferedInputStream(fileHandle.inputStream)
+      val data = Stream.continually (bis.read).takeWhile(-1 !=).map(_.toByte).toList
+      bis.close ()
+      Some (data)
+    } catch { case _ : Throwable => None }
   }
 }
