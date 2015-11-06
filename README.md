@@ -38,7 +38,7 @@ Zenith is written in a functional style; the codebase does not include a single 
  * [circe](https://github.com/typelevel/machinist) for functional JSON
  * ...and of course a pure functional subset of the Scala language.
 
-# Alternatives
+## Alternatives
 
 * [unfiltered](http://unfiltered.databinder.net/Unfiltered.html) a toolkit for servicing HTTP requests
 
