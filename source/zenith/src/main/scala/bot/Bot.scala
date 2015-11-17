@@ -113,8 +113,7 @@ object ActionT {
     StateT[Z, S, V] { s => v.map ((s, _)) }
 
   private def liftStateT[Z[_], X, V] (r: ReaderT[Z, X, V])(implicit m: Monad[Z]): StateT[Z, X, V] = {
-    type $[%, &] = StateT[Z, %, &]
-    val ms = MonadState[$, X]
+    val ms = MonadState[StateT[Z, X, ?], X]
     for {
       s <- ms.get
       r <- liftStateT[Z, X, V] (r.run (s))
@@ -123,9 +122,7 @@ object ActionT {
 
   def run[Z[_]: Context, ClientState, TRequest, TResponse] (
     action: ActionT[Z, ClientState, TRequest, TResponse], httpClient: HttpClient[Z], contextHandler: Z[(ClientState, Result)] => Z[(ClientState, Result)]): StateT[Z, ClientState, Result] = {
-    type U[I, J] = StateT[Z, I, J]
-    type V[I] = StateT[Z, ClientState, I]
-    val ms = MonadState[U, ClientState]
+    val ms = MonadState[StateT[Z, ClientState, ?], ClientState]
     val async = Async[Z]
     val logger = Logger[Z]
     def debug (s: String) = liftStateT[Z, ClientState, Unit] (logger.debug (s))
@@ -139,7 +136,7 @@ object ActionT {
       }
       for {
         cs <- ms.get
-        r <- assertions.sequence[V, Result].map (Foldable[List].fold (_))
+        r <- assertions.sequence[StateT[Z, ClientState, ?], Result].map (Foldable[List].fold (_))
         newState = action.after.map (f => f (cs, response)).getOrElse (cs)
         _ <- ms.set (newState)
       } yield r

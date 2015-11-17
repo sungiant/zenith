@@ -39,7 +39,7 @@ trait SbtCommonConfig {
       "Sonatype" at "https://oss.sonatype.org/content/repositories/releases/",
       "Typesafe" at "http://repo.typesafe.com/typesafe/releases/"),
     libraryDependencies ++= Seq (
-      "org.spire-math" %% "cats" % "0.1.2",
+      "org.spire-math" %% "cats" % "0.3.0",
       "com.github.nscala-time" %% "nscala-time" % "1.6.0"),
     scalacOptions ++= compilerOptions,
     scalacOptions in (Compile, console) := compilerOptions,
@@ -104,13 +104,14 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (buildSettings: _*)
     .settings (commonSettings: _*)
     .settings (publishSettings: _*)
-    .settings (libraryDependencies += "com.github.mpilquist" %% "simulacrum" % "0.3.0")
-    .settings (libraryDependencies += "io.circe" %% "circe-core" % "0.1.1")
-    .settings (libraryDependencies += "io.circe" %% "circe-generic" % "0.1.1")
-    .settings (libraryDependencies += "io.circe" %% "circe-jawn" % "0.1.1")
+    .settings (libraryDependencies += "com.github.mpilquist" %% "simulacrum" % "0.5.0")
+    .settings (libraryDependencies += "io.circe" %% "circe-core" % "0.2.1")
+    .settings (libraryDependencies += "io.circe" %% "circe-generic" % "0.2.1")
+    .settings (libraryDependencies += "io.circe" %% "circe-jawn" % "0.2.1")
     .settings (libraryDependencies += "org.specs2" %% "specs2-core" % "2.4.15" % "test")
     .settings (autoCompilerPlugins := true)
     .settings (addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0-M5" cross CrossVersion.full))
+    .settings (addCompilerPlugin("org.spire-math" % "kind-projector" % "0.7.1" cross CrossVersion.binary))
 
   lazy val zenith_netty = project
     .in (file ("source/zenith.netty"))
@@ -119,15 +120,5 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (commonSettings: _*)
     .settings (publishSettings: _*)
     .settings (libraryDependencies += "io.netty" % "netty" % "3.10.3.Final")
-    .dependsOn (zenith % "test->test;compile->compile")
-
-  lazy val zenith_context = project
-    .in (file ("source/zenith.context"))
-    .settings (moduleName := "zenith-context")
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (publishSettings: _*)
-    .settings (autoCompilerPlugins := true)
-    .settings (addCompilerPlugin("org.spire-math" % "kind-projector" % "0.6.3" cross CrossVersion.binary))
     .dependsOn (zenith % "test->test;compile->compile")
 }
