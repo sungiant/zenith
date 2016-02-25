@@ -33,9 +33,9 @@ Why is Zenith's generic architecture cool?  It makes it easy to write a webservi
 
 Zenith is written in a functional style; the codebase does not include a single instance of Scala's `var` keyword.  The core part of Zenith is built atop:
 
- * [cats](https://github.com/non/kind-projector) for functional patterns
+ * [cats](https://github.com/typelevel/cats) for functional patterns
  * [simulacrum](https://github.com/mpilquist/simulacrum) for minimizing typeclass boilerplate
- * [circe](https://github.com/typelevel/machinist) for functional JSON
+ * [circe](https://github.com/travisbrown/circe) for functional JSON
  * ...and of course a pure functional subset of the Scala language.
 
 ## Alternatives
