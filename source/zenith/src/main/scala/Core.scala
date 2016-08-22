@@ -14,127 +14,6 @@ import cats.Monad
 import zenith.Extensions._
 import java.io.PrintStream
 
-/** CONTEXTUAL TYPES **/
-/**********************************************************************************************************************/
-
-/**
- * Context
- */
-trait Context[Z[_]] extends Monad[Z] with Async[Z] with Logger[Z]
-object Context {
-  implicit def apply[Z[_]] (implicit m: Monad[Z], a: Async[Z], l: Logger[Z]): Context[Z] = {
-    new Context[Z] with Monad[Z] with Async[Z] with Logger[Z] {
-      /** Logger */
-      override def printAndClear[T](out: PrintStream, v: Z[T], onCrash: T): Z[T] = l.printAndClear (out, v, onCrash)
-      override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): Z[Unit] = l.log (channel, level, message)
-      /** Async */
-      override def await[T](v: Z[T], seconds: Int): Either[Throwable, T] = a.await (v, seconds)
-      override def liftScalaFuture[T] (expression: => scala.concurrent.Future[T]): Z[T] = a.liftScalaFuture (expression)
-      override def future[T] (expression: => T): Z[T] = a.future (expression)
-      override def success[T] (expression: => T): Z[T] =  a.success (expression)
-      override def failure[T] (expression: => Throwable): Z[T] = a.failure (expression)
-      override def onComplete[T, X](v: Z[T], f: Try[T] => X): Unit = a.onComplete (v, f)
-      override def promise[T] (): Async.Promise[Z, T] = a.promise ()
-      /** Monad */
-      override def pure[A] (a: A): Z[A] = m.pure (a)
-      override def flatMap[A, B] (fa: Z[A])(f: A => Z[B]): Z[B] = m.flatMap(fa)(f)
-      override def ap[A, B] (fa: Z[A])(ff: Z[A => B]): Z[B] = m.ap (fa)(ff)
-    }
-  }
-}
-
-
-/**
- * Logger
- */
-@typeclass trait Logger[Z[_]] {
-  import Logger._
-  def printAndClear[T](out: PrintStream, v: Z[T], onCrash: T): Z[T]
-  def log (channel: => Option[String], level: => Level, message: => String): Z[Unit]
-
-  /* HELPERS */
-  def log (channel: => Option[String], level: => Level, throwable: Throwable): Z[Unit] = log (channel, level, throwable.stackTrace)
-  def debug (message: => String): Z[Unit] = log (None, Level.DEBUG, message)
-  def info (message: => String): Z[Unit] = log (None, Level.INFO, message)
-  def warn (message: => String): Z[Unit] = log (None, Level.WARN, message)
-  def error (message: => String): Z[Unit] = log (None, Level.ERROR, message)
-  def trace (throwable: => Throwable): Z[Unit] = log (None, Level.ERROR, throwable)
-}
-object Logger {
-  val ZENITH = Some ("ZENITH")
-  case class Level (value: Int, name: String)
-  object Level {
-    val DEBUG = Level (1, "debug")
-    val INFO = Level (2, "info")
-    val WARN = Level (3, "warn")
-    val ERROR = Level (4, "error")
-
-    private val levels = List (DEBUG, INFO, WARN, ERROR)
-
-    def apply(value: Int): Option[Level] = levels find (_.value == value)
-    def apply(name: String): Option[Level] = levels find (_.name == name.toUpperCase)
-  }
-}
-
-
-/**
- * Async
- *
- * This typeclass is an abstraction over common features available in different flavours of `Future`, like:
- * - scala.concurrent.Future
- * - com.twitter.util.Future with
- * - scala.actor.Future
- * - java.util.concurrent.Future
- *
- */
-@typeclass trait Async[Z[_]] {
-
-  def await[T](v: Z[T], seconds: Int): Either[Throwable, T]
-  def promise[T](): Async.Promise[Z, T]
-  def future[T] (expression: => T): Z[T]
-  def success[T] (expression: => T): Z[T]
-  def failure[T] (expression: => Throwable): Z[T]
-
-  def liftScalaFuture[T] (fx: => scala.concurrent.Future[T]): Z[T]
-
-
-  /*
-   * When this future is completed, either through an exception, or a value,
-   *  apply the provided function.
-   *
-   *  If the future has already been completed, this will either be applied immediately or be scheduled asynchronously.
-   */
-  def onComplete[X, Y](v: Z[X], fn: Try[X] => Y): Unit
-
-  /*
-   * Async types can contain exceptions.
-   * When we do a normal `map`, we only map over the success case.  This
-   * function allows access to both the success or the failure case.
-   */
-  def transform[A, B] (v: Z[A])(fn: Try[A] => B): Z[B] = {
-    val p = promise[B]()
-    onComplete[A, Unit] (v, vResult =>
-      // Need a try here because `fn` may throw exceptions itself.
-      try {
-        val result = fn (vResult)
-        p.success (result)
-      } catch { case t: Throwable => p.failure (t) })
-
-    p.future
-  }
-}
-object Async {
-  trait Promise[Z[_], T] {
-    def success (x: T): Unit
-    def failure (x: Throwable): Unit
-    def future: Z[T]
-  }
-}
-
-
-
-/** REQUEST & RESPONSE TYPES **/
-/**********************************************************************************************************************/
 /**
  * http://en.wikipedia.org/wiki/Uniform_resource_locator
  *
@@ -187,17 +66,18 @@ trait HttpCommon {
   def data: List[Byte]
   def version: String
 
-  lazy val contentType = headers.get ("Content-Type")
-  lazy val charset = contentType.flatMap { ctStr =>
+  lazy val contentType: Option[String] = headers.get ("Content-Type")
+  lazy val charset: java.nio.charset.Charset = contentType.flatMap { ctStr =>
     "charset=([A-Za-z0-9_+-]*);?".r
       .findFirstMatchIn (ctStr)
       .flatMap (scala.util.matching.Regex.Match.unapply)
       .map (_.toUpperCase)
       .flatMap (x => Try { java.nio.charset.Charset.forName (x) }.toOption)
   }.getOrElse (java.nio.charset.Charset.forName ("UTF-8"))
-  lazy val body = data match {
+
+  lazy val body: Option[String] = data match {
     case null | Nil => None
-    case _ => Try { new String (data.toArray, charset) }.toOption
+    case _ => Try { new String (data.toArray, charset).trim() }.toOption
   }
   lazy val cookies: Map[String, String] = {
     def removeLeadingAndTrailingWhitespace (s: String): String = s.replaceAll ("""^\s+(?m)""","")
@@ -245,16 +125,18 @@ final case class HttpRequest (
     case Array (_, query) => Some (query)
   }
 
-  def toPrettyString =
-    s"--> $method $requestUri $version\n" +
-    s"--> Host: $host port $hostPort" +
-    headers
+  def toPrettyString = {
+    val lineT = s"$method $requestUri $version"
+    val lineHP = s"Host: $host port $hostPort"
+    val linesH = headers
       .filterNot (_._1.toLowerCase == "host")
-      .foldLeft ("") { (a, i) => s"\n--> ${i._1}: ${i._2}"} +
-      (contentType.map (ResourceUtils.isContentTypePrintable).getOrElse (false) match {
-        case true => body.map (x => s"\n<-- $x").getOrElse ("")
-        case false => ""
-      })
+      .map { case (k, v) => s"$k: $v" }
+      .toList
+    ((contentType.exists (ContentType.isPrintable), body) match {
+      case (true, Some (b)) => lineT :: lineHP :: linesH ::: b :: Nil
+      case _ => lineT :: lineHP :: linesH
+    }).map (x => s"--> $x").mkString ("\n")
+  }
 }
 object HttpRequest {
   def createFromUrl (
@@ -304,7 +186,6 @@ object HttpRequest {
   }
 }
 
-
 /**
  * HttpResponse
  */
@@ -313,24 +194,25 @@ final case class HttpResponse (
   data: List[Byte] = Nil,
   headers: Map[String, String] = Map (),
   version: String = "HTTP/1.1") extends HttpCommon {
-  def toPrettyString =
-    s"<-- $version $code ${HttpResponse.codes.getOrElse (code, "?")}" +
-      headers.foldLeft ("") { (a, i) => s"\n<-- ${i._1}: ${i._2}" } +
-      (contentType.map (ResourceUtils.isContentTypePrintable).getOrElse (false) match {
-        case true => body.map (x => s"\n<-- $x").getOrElse ("")
-        case false => ""
-      })
+  def toPrettyString: String = {
+    val lineT = s"$version $code ${HttpResponse.codes.getOrElse (code, "?")}"
+    val linesH = headers.map { case (k, v) => s"$k: $v" }.toList
+    ((contentType.exists (ContentType.isPrintable), body) match {
+      case (true, Some (b)) => lineT :: linesH ::: b :: Nil
+      case _ => lineT :: linesH
+    }).map (x => s"<-- $x").mkString ("\n")
+  }
 }
 object HttpResponse {
   private val utf8 = java.nio.charset.Charset.forName ("UTF-8")
-  def json (code: Int, body: String, headers: Map[String, String]) =        HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "application/json;charset=utf-8"))
-  def xml (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "application/xml;charset=utf-8"))
-  def js (code: Int, body: String, headers: Map[String, String]) =          HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/javascript;charset=utf-8"))
-  def html (code: Int, body: String, headers: Map[String, String]) =        HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/html;charset=utf-8"))
-  def css (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/css;charset=utf-8"))
-  def csv (code: Int, body: String, headers: Map[String, String]) =         HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/csv;charset=utf-8"))
-  def plain (code: Int, body: String, headers: Map[String, String]) =       HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/plain;charset=utf-8"))
-  def formEncoded (code: Int, body: String, headers: Map[String, String]) = HttpResponse (code, body.getBytes(utf8).toList, headers ++ Map ("Content-Type" -> "text/xml;charset=utf-8"))
+  def json (code: Int, body: String, headers: Map[String, String]) =        { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "application/json;charset=utf-8", "Content-Length" -> b.length.toString )) }
+  def xml (code: Int, body: String, headers: Map[String, String]) =         { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "application/xml;charset=utf-8", "Content-Length" -> b.length.toString )) }
+  def js (code: Int, body: String, headers: Map[String, String]) =          { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/javascript;charset=utf-8", "Content-Length" -> b.length.toString )) }
+  def html (code: Int, body: String, headers: Map[String, String]) =        { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/html;charset=utf-8", "Content-Length" -> b.length.toString )) }
+  def css (code: Int, body: String, headers: Map[String, String]) =         { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/css;charset=utf-8", "Content-Length" -> b.length.toString )) }
+  def csv (code: Int, body: String, headers: Map[String, String]) =         { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/csv;charset=utf-8", "Content-Length" -> b.length.toString )) }
+  def plain (code: Int, body: String, headers: Map[String, String]) =       { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/plain;charset=utf-8", "Content-Length" -> b.length.toString )) }
+  def formEncoded (code: Int, body: String, headers: Map[String, String]) = { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/xml;charset=utf-8", "Content-Length" -> b.length.toString )) }
 
   def json (code: Int, body: String): HttpResponse = json (code, body, Map ())
   def xml (code: Int, body: String): HttpResponse = xml (code, body, Map ())
@@ -373,42 +255,8 @@ object HttpResponse {
   )
 }
 
-
-/** EXTENSIONS */
-/**********************************************************************************************************************/
-
-object Extensions extends StringExtensions with ThrowableExtensions
-
-trait StringExtensions {
-  implicit class Implicit (val s: String) {
-    def splitCamelCase: String = {
-      val a = "(?<=[A-Z])(?=[A-Z][a-z])"
-      val b = "(?<=[^A-Z])(?=[A-Z])"
-      val c = "(?<=[A-Za-z])(?=[^A-Za-z])"
-      s"$a|$b|$c".r.replaceAllIn (s, " ")
-    }
-  }
-}
-
-trait ThrowableExtensions {
-  implicit class Implicit (val t: Throwable) {
-    def stackTrace: String = {
-      import java.io.{PrintWriter, StringWriter}
-      val stackTrace = new StringWriter
-      t.printStackTrace (new PrintWriter (stackTrace))
-      stackTrace.toString
-    }
-  }
-}
-
-
-/** UTILS */
-/**********************************************************************************************************************/
-
-case class FileHandle (path: String, url: java.net.URL, inputStream: java.io.InputStream)
-
-object ResourceUtils {
-  def guessContentTypeFromPath (path: String) = {
+object ContentType {
+  def guessFromPath (path: String) = {
     val p = path.toLowerCase
     if (p.endsWith (".html") || p.endsWith (".html")) "text/html"
     else if (p.endsWith (".css"))   "text/css"
@@ -424,7 +272,7 @@ object ResourceUtils {
     else "text/plain"
   }
 
-  def isContentTypePrintable (contentType: String) = contentType match {
+  def isPrintable (contentType: String) = contentType match {
     case x if x.contains ("text/css")
        || x.contains ("text/javascript")
        || x.contains ("text/csv")
@@ -433,25 +281,5 @@ object ResourceUtils {
        || x.contains ("text/plain") => true
     case _ => false
   }
-
-  def getFileHandle (path: String): Option[FileHandle] = {
-    path.endsWith("/") match {
-      case true => None
-      case false => (
-        Try (getClass.getResource (path)).toOption,
-        Try (getClass.getResourceAsStream (path)).toOption) match {
-        case (Some (url), Some (inputStream)) => Some (FileHandle (path, url, inputStream))
-        case _ => None
-      }
-    }
-  }
-
-  def getBytes[Z[_]: Context](fileHandle: FileHandle): Z[Option[List[Byte]]] = Async[Z].future {
-    try {
-      val bis = new java.io.BufferedInputStream(fileHandle.inputStream)
-      val data = Stream.continually (bis.read).takeWhile(-1 !=).map(_.toByte).toList
-      bis.close ()
-      Some (data)
-    } catch { case _ : Throwable => None }
-  }
 }
+

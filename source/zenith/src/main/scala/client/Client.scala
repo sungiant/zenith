@@ -14,18 +14,8 @@ import scala.util.{Success, Failure}
 /**
  * HttpClientConfig
  */
-final case class HttpClientConfig (timeoutMs: Int = 5000)
-
-
-/**
- * HttpClientProvider
- */
-abstract class HttpClientProvider[Z[_]: Context]
-{
-  def create (config: HttpClientConfig): HttpClient[Z]
-  def getClient (): Option[HttpClient[Z]]
-  def destroy (): Unit
-}
+final case class HttpClientConfig (
+  timeoutMs: Int = 5000)
 
 
 /**

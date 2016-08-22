@@ -11,8 +11,13 @@ import sbt._
 import sbtrelease.ReleasePlugin.autoImport._
 import com.typesafe.sbt.SbtPgp.autoImport._
 
-object SbtBuild extends Build
-  with SbtCommonConfig with SbtZenithBuild
+object SbtBuild extends Build with SbtCommonConfig with SbtZenithBuild {
+  lazy val default = project
+    .in (file ("."))
+    .settings (buildSettings: _*)
+    .settings (commonSettings: _*)
+    .aggregate (zenith, zenith_netty, zenith_plugins)
+}
 
 trait SbtCommonConfig {
   lazy val compilerOptions = Seq (
@@ -25,22 +30,24 @@ trait SbtCommonConfig {
     "-Yrangepos",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
-    "-Xfuture",
-    "-Xlint"
+    //"-Xlint",
+    "-Xfuture"
   )
 
   lazy val buildSettings = Seq(
     organization := "io.github.sungiant",
-    scalaVersion := "2.11.7",
-    crossScalaVersions := Seq ("2.10.5", "2.11.7")
+    scalaVersion := "2.11.8",
+    crossScalaVersions := Seq ("2.10.5", "2.11.8")
   )
   lazy val commonSettings = Seq (
     resolvers ++= Seq (
       "Sonatype" at "https://oss.sonatype.org/content/repositories/releases/",
+      "Sonatype Public" at "https://oss.sonatype.org/content/groups/public/",
       "Typesafe" at "http://repo.typesafe.com/typesafe/releases/"),
     libraryDependencies ++= Seq (
-      "org.spire-math" %% "cats" % "0.3.0",
-      "com.github.nscala-time" %% "nscala-time" % "1.6.0"),
+      "org.typelevel" %% "cats" % "0.6.1",
+      "com.github.nscala-time" %% "nscala-time" % "1.6.0",
+      "org.specs2" %% "specs2-core" % "2.4.15" % "test"),
     scalacOptions ++= compilerOptions,
     scalacOptions in (Compile, console) := compilerOptions,
     scalacOptions in (Compile, test) := compilerOptions,
@@ -61,30 +68,16 @@ trait SbtCommonConfig {
     pomIncludeRepository := { _ => false },
     publishTo := {
       val nexus = "https://oss.sonatype.org/"
-      if (isSnapshot.value)
-        Some("snapshots" at nexus + "content/repositories/snapshots")
-      else
-        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+      if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
+      else Some("releases"  at nexus + "service/local/staging/deploy/maven2")
     },
-    credentials ++= (
-      for {
+    credentials ++= (for {
         username <- Option(System.getenv().get("SONATYPE_USERNAME"))
         password <- Option(System.getenv().get("SONATYPE_PASSWORD"))
-      } yield Credentials(
-        "Sonatype Nexus Repository Manager",
-        "oss.sonatype.org",
-        username,
-        password
-      )
+      } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password )
     ).toSeq,
     autoAPIMappings := true,
-//    apiURL := Some(url("https://sungiant.github.io/zenith/api/")),
-    scmInfo := Some(
-      ScmInfo(
-        url("https://github.com/sungiant/zenith"),
-        "scm:git:git@github.com:sungiant/zenith.git"
-      )
-    ),
+    scmInfo := Some(ScmInfo(url("https://github.com/sungiant/zenith"), "scm:git:git@github.com:sungiant/zenith.git")),
     pomExtra := (
       <developers>
         <developer>
@@ -104,14 +97,10 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (buildSettings: _*)
     .settings (commonSettings: _*)
     .settings (publishSettings: _*)
-    .settings (libraryDependencies += "com.github.mpilquist" %% "simulacrum" % "0.5.0")
-    .settings (libraryDependencies += "io.circe" %% "circe-core" % "0.2.1")
-    .settings (libraryDependencies += "io.circe" %% "circe-generic" % "0.2.1")
-    .settings (libraryDependencies += "io.circe" %% "circe-jawn" % "0.2.1")
-    .settings (libraryDependencies += "org.specs2" %% "specs2-core" % "2.4.15" % "test")
+    .settings (libraryDependencies += "com.github.mpilquist" %% "simulacrum" % "0.7.0")
     .settings (autoCompilerPlugins := true)
-    .settings (addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0-M5" cross CrossVersion.full))
-    .settings (addCompilerPlugin("org.spire-math" % "kind-projector" % "0.7.1" cross CrossVersion.binary))
+    .settings (addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
+    .settings (addCompilerPlugin("org.spire-math" % "kind-projector" % "0.8.0" cross CrossVersion.binary))
 
   lazy val zenith_netty = project
     .in (file ("source/zenith.netty"))
@@ -120,5 +109,18 @@ trait SbtZenithBuild { this: SbtCommonConfig =>
     .settings (commonSettings: _*)
     .settings (publishSettings: _*)
     .settings (libraryDependencies += "io.netty" % "netty" % "3.10.3.Final")
+    .dependsOn (zenith % "test->test;compile->compile")
+
+  lazy val zenith_plugins = project
+    .in (file ("source/zenith.plugins"))
+    .settings (moduleName := "zenith-plugins")
+    .settings (buildSettings: _*)
+    .settings (commonSettings: _*)
+    .settings (publishSettings: _*)
+    .settings (libraryDependencies += "io.circe" %% "circe-core" % "0.5.0-M2")
+    .settings (libraryDependencies += "io.circe" %% "circe-generic" % "0.5.0-M2")
+    .settings (libraryDependencies += "io.circe" %% "circe-jawn" % "0.5.0-M2")
+    .settings (autoCompilerPlugins := true)
+    .settings (addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
     .dependsOn (zenith % "test->test;compile->compile")
 }

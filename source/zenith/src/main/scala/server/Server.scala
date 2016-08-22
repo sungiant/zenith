@@ -19,200 +19,54 @@ import org.joda.time.{DateTimeZone, DateTime}
 import cats.Monad.ops._
 import java.lang.reflect.{Method => ReflectedMethod}
 
-
-/** DATA */
-/**********************************************************************************************************************/
-
-final case class EndpointDocumentation (id: String, description: Option[String], method: HttpMethod, path: String)
-object EndpointDocumentation { import io.circe._, io.circe.generic.semiauto._
-  implicit val jeHttpMethod: Encoder[HttpMethod] = new Encoder[HttpMethod] { def apply (hm: HttpMethod): Json = { Json.string (hm.toString) } }
-  implicit val je = deriveFor[EndpointDocumentation].encoder
+/**
+  * A plugin is just a bundled collection of services, filters and mappers.  The plugin itself does not define how
+  * these elements interact with one another in a program, that kind of wiring must be done by defining facilities.
+  */
+abstract class Plugin[Z[_]: Context] (val identifier: String) {
+  def services: List[Service[Z]] = Nil
+  def requestFilters: List[RequestFilter[Z]] = Nil
+  def responseMappers: List[ResponseMapper[Z]] = Nil
 }
-
-final case class ServiceDocumentation (id: String, description: Option[String], endpoints: List[EndpointDocumentation])
-object ServiceDocumentation { import io.circe.generic.semiauto._
-  implicit val je = deriveFor[ServiceDocumentation].encoder
-}
-
-final case class ServerDocumentation (id: String, services: List[ServiceDocumentation])
-object ServerDocumentation { import io.circe.generic.semiauto._
-  implicit val je = deriveFor[ServerDocumentation].encoder
-}
-
-final case class HttpContent (format: ContentType, data: String)
-
-abstract class HttpServerConfig[Z[_]: Context] {
-  val identifier: String
-  val port: Int
-  val serviceGroups: List[HttpServiceGroup[Z]]
-
-  val resourcePaths: List[String] = Nil
-  val index: List[String] = "index.html" :: "index.htm" :: Nil
-  val documentationPlugin: Boolean = true
-}
-
-final case class HttpServiceGroup[Z[_]: Context] (
-  services: List[HttpService[Z]],
-  requestFilters: List[RequestFilter[Z]] = Nil,
-  responseMappers: List[ResponseMapper[Z]] = Nil)
-
-
-/** FILTERS */
-/**********************************************************************************************************************/
 
 /**
- * A request filter takes a request and does one of the following:
- * - returns a response, signalling the end of processing for this request, stopping it ever reaching a handler.
- * - if everything is fine the filter returns the request, possibly with modifications (like adding additional headers)
- */
-abstract class RequestFilter[Z[_]: Context] (val name: String) {
+  * A request filter takes a request and does one of the following:
+  * - returns a response, signalling the end of processing for this request, stopping it ever reaching a handler.
+  * - if everything is fine the filter returns the request, possibly with modifications (like adding additional headers)
+  */
+abstract class RequestFilter[Z[_]: Context] (val identifier: String) {
   def run (httpRequest: HttpRequest): Z[HttpResponse Either HttpRequest]
 }
 
 /**
- * ResponseMapper
- */
-abstract class ResponseMapper[Z[_]: Context] (val name: String) {
+  * ResponseMapper
+  */
+abstract class ResponseMapper[Z[_]: Context] (val identifier: String) {
   def run (httpResponse: HttpResponse): Z[HttpResponse]
 }
 
-
-/** ENDPOINT */
-/**********************************************************************************************************************/
-
 /**
- * HttpServiceEndpoint
+ * HttpServerConfig
  */
-final case class HttpServiceEndpoint[Z[_]: Context] (parent: HttpService[Z], fn: ReflectedMethod)(implicit logger: Logger[Z]) {
-  val id = fn.getName.splitCamelCase
-  val annotations = fn.getAnnotations
+abstract class HttpServerConfig[Z[_]: Context] (val identifier: String, val port: Int) {
+  
+  def services: List[Service[Z]] = Nil
+  def requestFilters: List[RequestFilter[Z]] = Nil
+  def responseMappers: List[ResponseMapper[Z]] = Nil
 
-  val description = annotations
-    .filter (x => x.annotationType == classOf[description])
-    .map (x => x.asInstanceOf[description].value)
-    .headOption
-
-  val method = annotations
-    .filter (x => x.annotationType == classOf[method])
-    .map (x => x.asInstanceOf[method].value)
-    .headOption
-    .getOrElse (HttpMethod.GET)
-
-  val path = {
-    val resourcePathOpt = parent
-      .getClass
-      .getAnnotations
-      .filter (x => x.annotationType == classOf[path])
-      .map (x => x.asInstanceOf[path].value)
-      .headOption
-
-    val endpointPathOpt = annotations
-      .filter (x => x.annotationType == classOf[path])
-      .map (x => x.asInstanceOf[path].value)
-      .headOption
-
-    (resourcePathOpt, endpointPathOpt) match {
-      case (Some (resourcePath), Some (endpointPath)) => resourcePath + endpointPath
-      case (Some (resourcePath), None) => resourcePath
-      case (None, Some (endpointPath)) => endpointPath
-      case _ => throw new Exception ("Endpoint the parent resource and/or the endpoint itself must be tagged with the `Path` annotation.")
-    }
-  }
-
-  def docs: EndpointDocumentation = EndpointDocumentation (id, description, method, path)
-
-  def handler = new PartialFunction[HttpRequest, Z[HttpResponse]] {
-    def isDefinedAt (request: HttpRequest): Boolean = request.method match {
-      case x if method.toString == x =>
-        path.r.findFirstMatchIn (request.path) match {
-          case Some (m) => true
-          case None => false
-        }
-      case _ => false
-    }
-
-    def apply (request: HttpRequest): Z[HttpResponse] = {
-      val x = path.r.findFirstMatchIn (request.path) match {
-        case Some (m) =>
-          m.groupCount match {
-            case 0 => fn.invoke (parent, request)
-            case n =>
-              val extraArgs = (1 to n).map (i => m.group (i)).toList
-              fn.invoke (parent, request :: extraArgs: _*)
-          }
-        case None => new Exception
-      }
-
-      val a = Try { x.asInstanceOf[Z[HttpResponse]] }.toOption
-      for {
-        _ <- logger.log (ZENITH, DEBUG, s"executing handler for ${request.path}")
-        result <- a match {
-          case Some (z) => z
-          case _ => throw new Exception ("Endpoint signature not supported.")
-        }
-      } yield result
-    }
-  }
-}
-
-
-/** SERVICE */
-/**********************************************************************************************************************/
-
-/**
- * A Http Service can be thought of as a pipeline.
- */
-abstract class HttpService[Z[_]: Context] {
-  final val id = super.getClass.getSimpleName.splitCamelCase
-  final val description = super
-    .getClass
-    .getAnnotations
-    .filter (x => x.annotationType == classOf[description])
-    .map (x => x.asInstanceOf[description].value)
-    .headOption
-
-  def requestPipeline: List[RequestFilter[Z]] = Nil
-  def responsePipeline: List[ResponseMapper[Z]] = Nil
-
-  final def handler: PartialFunction[HttpRequest, Z[HttpResponse]] = endpoints.map (_.handler).reduceLeft (_ orElse _)
-  final def docs: ServiceDocumentation = ServiceDocumentation (id, description, endpoints.map (_.docs))
-
-  private def isEndpoint (fn: ReflectedMethod): Boolean = Option (fn.getAnnotation (classOf[endpoint])).isDefined
-
-  private val endpoints: List[HttpServiceEndpoint[Z]] = super
-    .getClass
-    .getMethods
-    .collect { case fn if isEndpoint (fn) => new HttpServiceEndpoint[Z] (this, fn) }
-    .toList
-}
-
-
-/** SERVER */
-/**********************************************************************************************************************/
-
-/**
- * HttpServerProvider
- */
-abstract class HttpServerProvider[Z[_]: Context] {
-  def create (config: HttpServerConfig[Z]): HttpServer[Z]
-  def getServer (): Option[HttpServer[Z]]
-  def destroy (): Unit
+  def requestFilterWiring: Option[(Service[Z]) => List[RequestFilter[Z]]] = None
+  def responseMapperWiring: Option[(Service[Z]) => List[ResponseMapper[Z]]] = None
 }
 
 /**
  * HttpServer
  */
-final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit async: Async[Z], logger: Logger[Z]) {
+final case class HttpServer[Z[_]: Context] (config: HttpServerConfig[Z], plugins: List[Plugin[Z]])(implicit async: Async[Z], logger: Logger[Z]) {
   import logger._, async._
 
-  val name = config.identifier
-  val port = config.port
-  val endpointGroups = config.documentationPlugin match {
-    case true => config.serviceGroups :+ HttpServiceGroup[Z] (new DocumentationService[Z] (docs) :: Nil)
-    case false => config.serviceGroups
-  }
-
-  def docs (): ServerDocumentation = ServerDocumentation (config.identifier, endpointGroups.flatMap (_.services).map (_.docs))
+  private lazy val allServices = config.services ::: plugins.map (_.services).flatten
+  private lazy val allRequestFilters = config.requestFilters ::: plugins.map (_.requestFilters).flatten
+  private lazy val allResponseMappers = config.responseMappers ::: plugins.map (_.responseMappers).flatten
 
   def process (request: HttpRequest): Z[HttpResponse] = {
     val result = Try { processZ (request) } match {
@@ -222,51 +76,67 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
         response <- Async[Z].success { HttpResponse.plain (500) }
       } yield response
     }
-
     Logger[Z].printAndClear (System.out, result, HttpResponse.plain (500, "Something is wrong..."))
   }
 
-  def processZ (request: HttpRequest): Z[HttpResponse] = {
+  private def processZ (request: HttpRequest)
+  : Z[HttpResponse] = {
     val startTime = DateTime.now (DateTimeZone.UTC).getMillis
     for {
       _ <- log (ZENITH, INFO, s"Received request @ $startTime:\n${request.toPrettyString}")
       reqPath = request.path
-      _ <- log (ZENITH, DEBUG, s"Looking for handler function for ${request.method} $reqPath")
-      result <- endpointGroups
-        .map (x => (x, x.services.collectFirst { case s if s.handler.isDefinedAt (request) => s }))
-        .collectFirst { case (e, s) if s.isDefined => (e, s.get) } match {
+      _ <- log (ZENITH, DEBUG, s"Looking to find handler for ${request.method} $reqPath")
+      response <- handlerFn (request) match {
+        case Some (fn) => fn ()
         case None => for {
-          _ <- log (ZENITH, DEBUG, s"No suitable handler function found.")
-          result <- tryStaticResource (reqPath)
-        } yield result
-        case Some ((endpointGroup, service)) => for {
-          _ <- log (ZENITH, DEBUG, s"Found handler function in service: ${service.id}")
-          filteredRequest <- applyRequestFilters (request, endpointGroup.requestFilters)
-          response <- filteredRequest match {
-            case Left (bad) => for {
-              _ <- log (ZENITH, DEBUG, s"Not handling request, filters returned: $bad")
-              v <- success (bad)
-            } yield v
-            case Right (good) => for {
-              _ <- log (ZENITH, DEBUG, s"About to handle request: $good")
-              result <- service.handler.apply (good)
-            } yield result
-          }
-          mappedResponse <- applyResponseMappers (response, endpointGroup.responseMappers)
-          endTime = DateTime.now (DateTimeZone.UTC).getMillis
-          _ <- log (ZENITH, INFO, s"Generated response @$endTime:\n${response.toPrettyString}")
-          processingTime = endTime - startTime
-          _ <- log (ZENITH, INFO, s"Processing time: ${processingTime}ms")
-        } yield mappedResponse
+          _ <- log (ZENITH, DEBUG, s"No suitable handler found.")
+        } yield HttpResponse.plain (404)
       }
-    } yield result
+      endTime = DateTime.now (DateTimeZone.UTC).getMillis
+      _ <- log (ZENITH, INFO, s"Generated response @$endTime:\n${response.toPrettyString}")
+      processingTime = endTime - startTime
+      _ <- log (ZENITH, INFO, s"Processing time: ${processingTime}ms")
+    } yield response
   }
 
-  private def applyRequestFilters (req: HttpRequest, requestFilters: List[RequestFilter[Z]]): Z[HttpResponse Either HttpRequest] = for {
+  private def handlerFn (request: HttpRequest)
+  : Option[() => Z[HttpResponse]] = {
+    allServices
+      .collectFirst { case s if s.handler.isDefinedAt (request) => s }
+      .map { service =>
+        () => { 
+          for {
+            _ <- log (ZENITH, DEBUG, s"Found handler function in service: ${service.attributes.id}")
+            requestFilters = config.requestFilterWiring match {
+                case Some (f) => f (service)
+                case None => allRequestFilters
+            }
+            filteredRequest <- applyRequestFilters (request, requestFilters)
+            response <- filteredRequest match {
+              case Left (bad) => for {
+                _ <- log (ZENITH, DEBUG, s"Not handling request, filters returned: $bad")
+                v <- success (bad)
+              } yield v
+              case Right (good) => for {
+                result <- service.handler.apply (good)
+              } yield result
+            }
+            responseMappers = config.responseMapperWiring match {
+                case Some (f) => f (service)
+                case None => allResponseMappers
+            }
+            mappedResponse <- applyResponseMappers (response, responseMappers)
+          } yield mappedResponse
+        }
+      }
+  }
+
+  private def applyRequestFilters (req: HttpRequest, requestFilters: List[RequestFilter[Z]])
+  : Z[HttpResponse Either HttpRequest] = for {
     _ <- log (ZENITH, DEBUG, s"About to apply request filters")
     result <- requestFilters.foldLeft (success[HttpResponse Either HttpRequest] (Right (req))) { (acc, f) =>
       for {
-        _ <- log (ZENITH, DEBUG, s"Sequencing request filter:${f.name}")
+        _ <- log (ZENITH, DEBUG, s"Sequencing request filter:${f.identifier}")
         a <- acc
         result <- a match {
           case Left (bad) => success[HttpResponse Either HttpRequest] (Left (bad))
@@ -276,104 +146,16 @@ final case class HttpServer[Z[_]: Context](config: HttpServerConfig[Z])(implicit
     }
   } yield result
 
-  private def applyResponseMappers (resp: HttpResponse, responseMappers: List[ResponseMapper[Z]]): Z[HttpResponse] = for {
+  private def applyResponseMappers (resp: HttpResponse, responseMappers: List[ResponseMapper[Z]])
+  : Z[HttpResponse] = for {
     _ <- log (ZENITH, DEBUG, s"About to apply response mappers.")
     result <- responseMappers.foldLeft (success (resp)) { (acc, f) =>
       for {
-        _ <- log (ZENITH, DEBUG, s"Sequencing response mapper:${f.name}")
+        _ <- log (ZENITH, DEBUG, s"Sequencing response mapper:${f.identifier}")
         a <- acc
         result <- f.run (a)
       } yield result
     }
   } yield result
-
-  private def getBestPath (requestPath: String) = ReaderT[Z, HttpServerConfig[Z], Option[String]] { (config: HttpServerConfig[Z]) =>
-    config.resourcePaths match {
-      case Nil => Async[Z].success { None: Option[String] }
-      case paths => for {
-        _ <- log (ZENITH, DEBUG, s"Resource paths: " + config.resourcePaths.mkString(", ") + ".")
-        possibilities <- Async[Z].success {
-          val possiblePaths = paths.map (p => p + requestPath)
-          requestPath.contains('.') match {
-            case true => possiblePaths
-            case false => possiblePaths ::: possiblePaths.flatMap (p => config.index.map (i => p + i)) ::: Nil
-          }
-        }
-        _ <- log (ZENITH, DEBUG, s"Possible paths for resource: " + possibilities.mkString(", ") + ".")
-        pathOpt <- Async[Z].success { possibilities.find (ResourceUtils.getFileHandle (_).isDefined) }
-        _ <- log (ZENITH, DEBUG, s"Best path: " + pathOpt.getOrElse ("None") + ".")
-      } yield pathOpt
-    }
-  }
-
-  private def tryStaticResource (requestPath: String): Z[HttpResponse] = for {
-    _ <- log (ZENITH, DEBUG, s"Working out best path.")
-    bestPathOpt <- getBestPath (requestPath).run (config)
-    result <- bestPathOpt match {
-      case None => for {
-        _ <- log (ZENITH, DEBUG, s"No static resource path configured.")
-        result <- success[Option[HttpResponse]] (None)
-      } yield result
-      case Some (bestPath) => for {
-        _ <- log (ZENITH, DEBUG, s"Looking for static resource: $bestPath")
-        result <- ResourceUtils.getFileHandle (bestPath) match {
-          case None => for {
-            _ <- log (ZENITH, DEBUG, s"No suitable static resource found for: $requestPath")
-          } yield None: Option[HttpResponse]
-          case Some (fileHandle) => for {
-            _ <- log (ZENITH, DEBUG, s"Found static resource at PATH: ${fileHandle.path}, URL: ${fileHandle.url}")
-            bytes <- ResourceUtils.getBytes[Z](fileHandle)
-          } yield bytes match {
-            case None | Some (Nil) => Some (HttpResponse.plain (404, "Not Found"))
-            case Some (content) =>
-              import java.text.SimpleDateFormat
-              import java.util.Calendar
-              import java.util.GregorianCalendar
-              import java.util.Locale
-              import java.util.TimeZone
-              val HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz"
-              val HTTP_CACHE_SECONDS = 60 * 60 * 3
-
-              val time = new GregorianCalendar ()
-              time.add(Calendar.SECOND, HTTP_CACHE_SECONDS)
-              val dateFormatter = new SimpleDateFormat (HTTP_DATE_FORMAT, Locale.US)
-              dateFormatter.setTimeZone (TimeZone.getDefault)
-              val contentType = ResourceUtils.guessContentTypeFromPath (bestPath)
-
-              val headers = ResourceUtils.isContentTypePrintable (bestPath) match {
-                case true => Map (
-                  "Content-Type" -> contentType,
-                  "Date" -> dateFormatter.format (time.getTime)
-                )
-                case false => Map (
-                  "Content-Type" -> contentType,
-                  "Cache-Control" -> s"max-age=$HTTP_CACHE_SECONDS",
-                  "Expires" -> dateFormatter.format (time.getTime),
-                  "Date" -> dateFormatter.format (time.getTime)
-                )
-              }
-              Option (HttpResponse (200, content, headers))
-            }
-        }
-      } yield result
-    }
-  } yield result match {
-    case Some (response) => response
-    case None => HttpResponse.plain (404)
-  }
 }
 
-
-/** DOCUMENTATION SERVICE */
-/**********************************************************************************************************************/
-
-final class DocumentationService[Z[_]: Context] (docs: () => ServerDocumentation) extends HttpService[Z] {
-  @endpoint
-  @path ("^/documentation$")
-  @method (HttpMethod.GET)
-  @description ("Provides documentation for the API.")
-  def docs (request: HttpRequest): Z[HttpResponse] = {
-    import io.circe.syntax._
-    Async[Z].success (HttpResponse.json (200, docs ().asJson.noSpaces))
-  }
-}

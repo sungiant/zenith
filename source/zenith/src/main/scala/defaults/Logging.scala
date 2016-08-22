@@ -12,7 +12,6 @@ import zenith.{Async, HttpResponse}
 import cats.Monad.ops._
 import cats.Functor.ops._
 import cats._
-import cats.state._
 import cats.data._
 
 import scala.util.{Try, Success, Failure}

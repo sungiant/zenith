@@ -11,7 +11,6 @@ package zenith
 import cats.Monad.ops._
 import cats.Functor.ops._
 import cats._
-import cats.state._
 import cats.data._
 
 import scala.util.{Try, Success, Failure}
@@ -40,11 +39,12 @@ package object defaults {
     implicit val monadFuture: Monad[Future] = new Monad[Future] {
       override def pure[A] (a: A): Future[A] = Future (a)(ec)
       override def flatMap[A, B] (fa: Future[A])(f: A => Future[B]): Future[B] = fa.flatMap (a => f (a))(ec)
-      override def ap[A, B] (fa: Future[A])(ff: Future[A => B]): Future[B] = fa.flatMap (a => ff.map (f => f (a))(ec))(ec)
+      override def ap[A, B] (ff: Future[A => B])(fa: Future[A]): Future[B] = fa.flatMap (a => ff.map (f => f (a))(ec))(ec)
     }
 
     /** Logger */
     override def printAndClear[T](out: PrintStream, c: CONTEXT[T], onCrash: T): CONTEXT[T] = {
+      // TODO: This could be incorrectly triggering twice on some exceptions; write tests to investigate.
       val ctxT = c.toEither.written
       val vT = c.toEither.value.mapAll[T] {
         case Success (s) => s match {
@@ -52,15 +52,18 @@ package object defaults {
           case Left (ex) =>
             import zenith.Extensions._
             out.println (s"Task in context completed with failure, exception found within context:")
-            out.println (ex.getMessage)
+            out.println (s"Failed context message: ${ex.getMessage}")
+            out.println (s"Failed context stack trace:")
             out.println (ex.stackTrace)
             onCrash
         }
         case Failure (f) =>
           import zenith.Extensions._
-          out.println (s"Task in context completed with failed Future:")
-          out.println (f.getMessage)
-          out.println (f.stackTrace)
+          out.println (s"Task in context completed with failed Future.")
+          out.println (s"Failed Future message: ${f.getCause.getMessage}")
+          out.println (s"Failed Future stack trace:")
+          out.println (f.getCause.stackTrace)
+
           onCrash
       }(ec)
 
@@ -78,8 +81,12 @@ package object defaults {
 
     override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): CONTEXT[Unit] = {
       Try { LoggingContext.log (channel, level, message) } match {
-        case Success (s) => XorT.right[WF, Throwable, Unit](WriterT.put[Future, LoggingContext, Unit](())(s))
-        case Failure (f) => XorT.left[WF, Throwable, Unit](WriterT.value[Future, LoggingContext, Throwable](f))
+        case Success (s) =>
+            //println (s)
+            XorT.right[WF, Throwable, Unit](WriterT.put[Future, LoggingContext, Unit](())(s))
+        case Failure (f) =>
+            //println (f)
+            XorT.left[WF, Throwable, Unit](WriterT.value[Future, LoggingContext, Throwable](f))
       }
     }
 
@@ -120,6 +127,6 @@ package object defaults {
     /** Monad */
     override def pure[A] (a: A): CONTEXT[A] = future (a)
     override def flatMap[A, B] (fa: CONTEXT[A])(f: A => CONTEXT[B]): CONTEXT[B] = fa.flatMap (a => f (a))
-    override def ap[A, B] (fa: CONTEXT[A])(ff: CONTEXT[A => B]): CONTEXT[B] = fa.flatMap (a => ff.map (f => f (a)))
+    override def ap[A, B] (ff: CONTEXT[A => B])(fa: CONTEXT[A]): CONTEXT[B] = fa.flatMap (a => ff.map (f => f (a)))
   }
 }
