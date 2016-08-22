@@ -20,7 +20,7 @@ import io.circe.jawn._
 import io.circe.syntax._
 import io.circe.generic.auto._
 
-final class ProxyService[Z[_]: Context] (httpClient: HttpClient[Z]) extends HttpService[Z] {
+final class ProxyService[Z[_]: Context] (httpClient: HttpClient[Z]) extends Service[Z] {
 
   @endpoint
   @path ("^/proxy$")
@@ -35,8 +35,11 @@ final class ProxyService[Z[_]: Context] (httpClient: HttpClient[Z]) extends Http
       case Some (decoded) => for {
         _ <- Logger[Z].debug (s"About to make a ${decoded.method} request to: ${decoded.url}")
         response <- httpClient.send (HttpRequest.createFromUrl (decoded.url, decoded.method))
-        _ <- Logger[Z].debug (s"Received ${response.code} response from target.")
-        r <- Async[Z].success (response)
+        _ <- Logger[Z].info (s"Received response from target:\n${response.toPrettyString}")
+        _ <- Logger[Z].info (s"Received response data length: ${response.data.length}")
+        n = HttpResponse.json (200, response.body.getOrElse("{}"))
+        r <- Async[Z].success (n)
+        _ <- Logger[Z].info (s"About to send response data length: ${r.data.length}")
       } yield r
     }
   } yield r

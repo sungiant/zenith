@@ -3,6 +3,7 @@ package demo.bot
 import demo._
 import zenith._, zenith.bot._
 import cats.data._
+import util.{Try, Success}
 
 @description ("Check that the server side status page is running as expected")
 sealed class CheckStatus[Z[_]: Context] (endpoint: String)
@@ -10,8 +11,8 @@ sealed class CheckStatus[Z[_]: Context] (endpoint: String)
   val request: ReaderT[Z, RestClientState, HttpRequest] = ReaderT { _ =>
     Async[Z].success (HttpRequest.createFromUrl(s"$endpoint/status"))
   }
-  def requestMapper (x: HttpRequest): HttpRequest = x
-  def responseMapper (x: HttpResponse): Option[HttpResponse] = Some (x)
+  def requestMapper: ReaderT[Z, HttpRequest, HttpRequest] = ReaderT { x => Async[Z].success { x } }
+  def responseMapper: ReaderT[Z, HttpResponse, Try[HttpResponse]] = ReaderT { x => Async[Z].success { Success (x) } }
 
   @assertion
   @description ("check that the response code received is 200")

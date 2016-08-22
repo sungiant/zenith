@@ -10,7 +10,7 @@ import org.joda.time.{DateTime, DateTimeZone}
 import scala.util.Try
 import scala.io.StdIn
 
-final class StatusService[Z[_]: Context] () extends HttpService[Z] {
+final class StatusService[Z[_]: Context] () extends Service[Z] {
   @endpoint
   @path ("^/status$")
   @method (HttpMethod.GET)

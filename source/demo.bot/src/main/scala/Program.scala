@@ -1,24 +1,25 @@
 package demo.bot
 
 import demo._
-import zenith._, zenith.context.Context, zenith.bot._, zenith.client._, zenith.netty._
-import cats._, cats.data._, cats.state._, cats.std.all._
+import zenith._, zenith.bot._, zenith.client._, zenith.netty._
+import cats._, cats.data._, cats.std.all._
 import scala.util.{Success, Failure}
 
 object Program {
   def main (args: Array[String]): Unit = {
-    type C[$] = Context.CONTEXT[$]
+    type C[$] = defaults.CONTEXT[$]
     import java.util.concurrent.Executors
     import scala.concurrent.ExecutionContext
 
     val userES = Executors.newFixedThreadPool (8)
     val userEC = ExecutionContext.fromExecutorService (userES)
-    implicit val context = Context.context (userEC)
+    implicit val context = defaults.fpContext (userEC)
 
     val clientProvider = new NettyHttpClientProvider[C]
     val client = clientProvider.create (HttpClientConfig ())
 
-    val contextHandler = Context.printAndClear[(RestClientState, Result)] (System.out, userEC, (RestClientState (), Failed)) _
+    val contextHandler: C[(RestClientState, Result)] => C[(RestClientState, Result)] =
+      Logger[C].printAndClear[(RestClientState, Result)] (System.out, _,(RestClientState (), Failed))
 
     val bot = new Bot[C, RestClientState] {
       lazy val createStartState: RestClientState = RestClientState ()

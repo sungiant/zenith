@@ -2,38 +2,38 @@ package demo
 
 import io.circe._, io.circe.generic.semiauto._
 
-final case class IncidentMessageTranslation (content: String, locale: String, updated_at: String)
+final case class IncidentMessageTranslation (content: String, locale: String, heading: String)
 object IncidentMessageTranslation {
-  implicit val je = deriveFor[IncidentMessageTranslation].encoder
-  implicit val jd = deriveFor[IncidentMessageTranslation].decoder
+  implicit val je = deriveEncoder[IncidentMessageTranslation]
+  implicit val jd = deriveDecoder[IncidentMessageTranslation]
 }
 
-final case class IncidentMessage (id: Long, author: String, content: String, severity: String, translations: List[IncidentMessageTranslation], created_at: String, updated_at: String)
+final case class IncidentMessage (id: String, author: String, content: String, severity: String, translations: List[IncidentMessageTranslation], created_at: String, updated_at: String)
 object IncidentMessage {
-  implicit val je = deriveFor[IncidentMessage].encoder
-  implicit val jd = deriveFor[IncidentMessage].decoder
+  implicit val je = deriveEncoder[IncidentMessage]
+  implicit val jd = deriveDecoder[IncidentMessage]
 }
 
 final case class Incident (id: Long, active: Boolean, created_at: String, updates: List[IncidentMessage])
 object Incident {
-  implicit val je = deriveFor[Incident].encoder
-  implicit val jd = deriveFor[Incident].decoder
+  implicit val je = deriveEncoder[Incident]
+  implicit val jd = deriveDecoder[Incident]
 }
 
 final case class ShardService (name: String, incidents: List[Incident], slug: String, status: String)
 object ShardService {
-  implicit val je = deriveFor[ShardService].encoder
-  implicit val jd = deriveFor[ShardService].decoder
+  implicit val je = deriveEncoder[ShardService]
+  implicit val jd = deriveDecoder[ShardService]
 }
 
 final case class ShardStatus (name: String, hostname: String, locales: List[String], slug: String, region_tag: Option[String], services: List[ShardService])
 object ShardStatus {
-  implicit val je = deriveFor[ShardStatus].encoder
-  implicit val jd = deriveFor[ShardStatus].decoder
+  implicit val je = deriveEncoder[ShardStatus]
+  implicit val jd = deriveDecoder[ShardStatus]
 }
 
-final case class Shard (name: String, hostname: String, locales: List[String], slug: String, region_tag: Option[String])
+final case class Shard (name: String, slug: String, locales: List[String], hostname: String, region_tag: Option[String])
 object Shard {
-  implicit val je = deriveFor[Shard].encoder
-  implicit val jd = deriveFor[Shard].decoder
+  implicit val je = deriveEncoder[Shard]
+  implicit val jd = deriveDecoder[Shard]
 }
