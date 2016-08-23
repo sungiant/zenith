@@ -18,7 +18,7 @@ To get started with SBT, simply add the following to your `build.sbt` file:
 libraryDependencies += "io.github.sungiant" %% "zenith" % "0.1.0"
 ```
 
-Additionally, the following package contains an off the shelf implementations of Zenith's abstract network layer:
+Additionally, the following packages contain an off the shelf implementations of Zenith's abstract network layer and a handful of off the shelf plugins:
 
 ```scala
 libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.1.0"
