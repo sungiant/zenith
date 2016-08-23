@@ -48,7 +48,7 @@ Zenith is written in a functional style; the codebase does not include a single 
 
 ## License
 
-Zenith is licensed under the **[MIT License][mit]**; you may not use this software except in compliance with the License.
+Zenith is licensed under the **[MIT License][license]**; you may not use this software except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -65,5 +65,4 @@ limitations under the License.
 [circe]: https://github.com/travisbrown/circe
 [simulacrum]: https://github.com/mpilquist/simulacrum
 [cats]: https://github.com/typelevel/cats
-[mit]: https://raw.githubusercontent.com/sungiant/zenith/master/LICENSE
 [demo]: https://github.com/sungiant/zenith/tree/demo
