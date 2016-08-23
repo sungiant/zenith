@@ -8,7 +8,7 @@
 
 Zenith is a functional HTTP toolkit for Scala.
 
-## Getting Started
+## Getting started
 
 Zenith is currently available for Scala 2.11.
 
