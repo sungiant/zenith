@@ -27,7 +27,7 @@ libraryDependencies += "io.github.sungiant" %% "zenith-plugins" % "0.1.0"
 
 ## A working example
 
-An demo project can be found in the orphan [demo][demo] branch of this repository.
+A demo project can be found in the orphan [demo][demo] branch of this repository.
 
 ## Architecture
 
