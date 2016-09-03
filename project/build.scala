@@ -16,6 +16,7 @@ object SbtBuild extends Build with SbtCommonConfig with SbtZenithBuild {
     .in (file ("."))
     .settings (buildSettings: _*)
     .settings (commonSettings: _*)
+    .settings (noPublishSettings: _*)
     .aggregate (zenith, zenith_netty, zenith_plugins)
 }
 

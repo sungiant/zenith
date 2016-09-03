@@ -133,6 +133,7 @@ final case class HttpRequest (
       .map { case (k, v) => s"$k: $v" }
       .toList
     ((contentType.exists (ContentType.isPrintable), body) match {
+      case (true, Some (b)) if b.size > maxPrintableMessageBodySize => lineT :: lineHP :: linesH ::: longMessageBodyReplacementText :: Nil
       case (true, Some (b)) => lineT :: lineHP :: linesH ::: b :: Nil
       case _ => lineT :: lineHP :: linesH
     }).map (x => s"--> $x").mkString ("\n")
@@ -198,6 +199,7 @@ final case class HttpResponse (
     val lineT = s"$version $code ${HttpResponse.codes.getOrElse (code, "?")}"
     val linesH = headers.map { case (k, v) => s"$k: $v" }.toList
     ((contentType.exists (ContentType.isPrintable), body) match {
+      case (true, Some (b)) if b.size > maxPrintableMessageBodySize => lineT :: linesH ::: longMessageBodyReplacementText :: Nil
       case (true, Some (b)) => lineT :: linesH ::: b :: Nil
       case _ => lineT :: linesH
     }).map (x => s"<-- $x").mkString ("\n")
