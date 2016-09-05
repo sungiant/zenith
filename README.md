@@ -15,14 +15,14 @@ Zenith is currently available for Scala 2.11.
 To get started with SBT, simply add the following to your `build.sbt` file:
 
 ```scala
-libraryDependencies += "io.github.sungiant" %% "zenith" % "0.1.1"
+libraryDependencies += "io.github.sungiant" %% "zenith" % "0.1.2"
 ```
 
 Additionally, the following packages contain an off the shelf implementations of Zenith's abstract network layer and a handful of off the shelf plugins:
 
 ```scala
-libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.1.1"
-libraryDependencies += "io.github.sungiant" %% "zenith-plugins" % "0.1.1"
+libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.1.2"
+libraryDependencies += "io.github.sungiant" %% "zenith-plugins" % "0.1.2"
 ```
 
 ## A working example
