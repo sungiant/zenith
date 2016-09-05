@@ -18,6 +18,7 @@ import scala.concurrent.{Promise, Future, ExecutionContext}
 import java.io.PrintStream
 
 import zenith.defaults.Extensions._
+import scala.collection.immutable.HashSet
 
 /**
  * This package provides a functional implementation of a `Zenith Context`.
@@ -43,7 +44,7 @@ package object defaults {
     }
 
     /** Logger */
-    override def printAndClear[T](out: PrintStream, c: CONTEXT[T], onCrash: T): CONTEXT[T] = {
+    override def printAndClear[T](out: PrintStream, c: CONTEXT[T], onCrash: T, verbosity: Logger.Level, channelFilter: HashSet[Logger.Channel]): CONTEXT[T] = {
       // TODO: This could be incorrectly triggering twice on some exceptions; write tests to investigate.
       val ctxT = c.toEither.written
       val vT = c.toEither.value.mapAll[T] {
@@ -69,7 +70,13 @@ package object defaults {
 
       val f = ctxT.flatMap { ctx =>
         vT.map { v =>
-          ctx.logs.foreach { x => out.printLog (x.channel, x.level, x.message) }
+          ctx.logs
+            .filter (x => verbosity.value <= x.level.value)
+            .filter { x => x match {
+              case Log (Some (c), _, _) => channelFilter.isEmpty || channelFilter.contains(c)
+              case _ => true
+            }}
+            .foreach (x => out.printLog (x.channel, x.level, x.message))
           out.println ()
           v
         }(ec)

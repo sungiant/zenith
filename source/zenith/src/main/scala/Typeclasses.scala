@@ -13,6 +13,7 @@ import scala.util.{Try, Success, Failure}
 import cats.Monad
 import zenith.Extensions._
 import java.io.PrintStream
+import scala.collection.immutable.HashSet
 
 /**
  * Context
@@ -22,7 +23,7 @@ object Context {
   implicit def apply[Z[_]] (implicit m: Monad[Z], a: Async[Z], l: Logger[Z]): Context[Z] = {
     new Context[Z] with Monad[Z] with Async[Z] with Logger[Z] {
       /** Logger */
-      override def printAndClear[T](out: PrintStream, v: Z[T], onCrash: T): Z[T] = l.printAndClear (out, v, onCrash)
+      override def printAndClear[T](out: PrintStream, v: Z[T], onCrash: T, verbosity: Logger.Level, channelFilter: HashSet[Logger.Channel]): Z[T] = l.printAndClear (out, v, onCrash, verbosity, channelFilter)
       override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): Z[Unit] = l.log (channel, level, message)
       /** Async */
       override def await[T](v: Z[T], seconds: Int): Either[Throwable, T] = a.await (v, seconds)
@@ -46,7 +47,7 @@ object Context {
  */
 @typeclass trait Logger[Z[_]] {
   import Logger._
-  def printAndClear[T](out: PrintStream, v: Z[T], onCrash: T): Z[T]
+  def printAndClear[T](out: PrintStream, v: Z[T], onCrash: T, verbosity: Logger.Level = Logger.Level.DEBUG, channelFilter: HashSet[Logger.Channel] = HashSet.empty): Z[T]
   def log (channel: => Option[String], level: => Level, message: => String): Z[Unit]
 
   /* HELPERS */
@@ -59,6 +60,7 @@ object Context {
 }
 object Logger {
   val ZENITH = Some ("ZENITH")
+  type Channel = String
   case class Level (value: Int, name: String)
   object Level {
     val DEBUG = Level (1, "debug")

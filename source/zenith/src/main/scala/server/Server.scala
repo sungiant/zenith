@@ -18,6 +18,7 @@ import cats.data._
 import org.joda.time.{DateTimeZone, DateTime}
 import cats.Monad.ops._
 import java.lang.reflect.{Method => ReflectedMethod}
+import scala.collection.immutable.HashSet
 
 /**
   * A plugin is just a bundled collection of services, filters and mappers.  The plugin itself does not define how
@@ -56,6 +57,9 @@ abstract class HttpServerConfig[Z[_]: Context] (val identifier: String, val port
 
   def requestFilterWiring: Option[(Service[Z]) => List[RequestFilter[Z]]] = None
   def responseMapperWiring: Option[(Service[Z]) => List[ResponseMapper[Z]]] = None
+
+  def verbosity = Logger.Level.DEBUG
+  def channelFilters = HashSet.empty[Logger.Channel]
 }
 
 /**
@@ -76,7 +80,7 @@ final case class HttpServer[Z[_]: Context] (config: HttpServerConfig[Z], plugins
         response <- Async[Z].success { HttpResponse.plain (500) }
       } yield response
     }
-    Logger[Z].printAndClear (System.out, result, HttpResponse.plain (500, "Something is wrong..."))
+    Logger[Z].printAndClear (System.out, result, HttpResponse.plain (500, "Something is wrong..."), config.verbosity, config.channelFilters)
   }
 
   private def processZ (request: HttpRequest)
