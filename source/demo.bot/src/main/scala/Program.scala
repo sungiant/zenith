@@ -4,6 +4,7 @@ import demo._
 import zenith._, zenith.bot._, zenith.client._, zenith.netty._
 import cats._, cats.data._, cats.std.all._
 import scala.util.{Success, Failure}
+import scala.collection.immutable.HashSet
 
 object Program {
   def main (args: Array[String]): Unit = {
@@ -19,7 +20,7 @@ object Program {
     val client = clientProvider.create (HttpClientConfig ())
 
     val contextHandler: C[(RestClientState, Result)] => C[(RestClientState, Result)] =
-      Logger[C].printAndClear[(RestClientState, Result)] (System.out, _,(RestClientState (), Failed))
+      Logger[C].printAndClear[(RestClientState, Result)] (System.out, _,(RestClientState (), Failed), Logger.Level.DEBUG, HashSet.empty[Logger.Channel])
 
     val bot = new Bot[C, RestClientState] {
       lazy val createStartState: RestClientState = RestClientState ()

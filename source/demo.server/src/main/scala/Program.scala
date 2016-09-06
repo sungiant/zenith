@@ -7,6 +7,7 @@ import zenith.client._
 import zenith.server._
 import zenith.netty._
 
+import scala.collection.immutable.HashSet
 import scala.io.StdIn
 
 object Program {
@@ -26,6 +27,8 @@ object Program {
 
   class DemoServerConfig (client: HttpClient[C]) extends HttpServerConfig[C] (name, port) {
     override val services = new StatusService[C] () :: new ProxyService[C] (client) :: Nil
+    override val verbosity = Logger.Level.DEBUG
+    override val channelFilters = HashSet.empty[Logger.Channel]
   }
 
   def startService (): Unit = {

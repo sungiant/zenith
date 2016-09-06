@@ -10,7 +10,7 @@ import sbt.Keys._
 import sbt._
 
 object SbtBuild extends Build with SbtCommonConfig with SbtDemoBuild {
-  lazy val default = project
+  lazy val root = project
     .in (file ("."))
     .settings (buildSettings: _*)
     .settings (commonSettings: _*)
@@ -18,6 +18,10 @@ object SbtBuild extends Build with SbtCommonConfig with SbtDemoBuild {
 }
 
 trait SbtCommonConfig {
+
+  lazy val circeVersion = "0.5.0-M2"
+  lazy val zenithVersion = "0.1.2"
+
   lazy val compilerOptions = Seq (
     "-deprecation",
     "-encoding", "UTF-8",
@@ -54,10 +58,10 @@ trait SbtDemoBuild { this: SbtCommonConfig =>
     .settings (moduleName := "demo")
     .settings (buildSettings: _*)
     .settings (commonSettings: _*)
-    .settings (libraryDependencies += "io.circe" %% "circe-core" % "0.5.0-M2")
-    .settings (libraryDependencies += "io.circe" %% "circe-generic" % "0.5.0-M2")
-    .settings (libraryDependencies += "io.circe" %% "circe-jawn" % "0.5.0-M2")
-    .settings (libraryDependencies += "io.github.sungiant" %% "zenith" % "0.1.0")
+    .settings (libraryDependencies += "io.circe" %% "circe-core" % circeVersion)
+    .settings (libraryDependencies += "io.circe" %% "circe-generic" % circeVersion)
+    .settings (libraryDependencies += "io.circe" %% "circe-jawn" % circeVersion)
+    .settings (libraryDependencies += "io.github.sungiant" %% "zenith" % zenithVersion)
 
   lazy val demo_server = project
     .in (file ("source/demo.server"))
@@ -66,9 +70,9 @@ trait SbtDemoBuild { this: SbtCommonConfig =>
     .settings (commonSettings: _*)
     .settings (connectInput in run := true)
     .settings (fork in run := true)
-    .settings (libraryDependencies += "io.github.sungiant" %% "zenith" % "0.1.0")
-    .settings (libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.1.0")
-    .settings (libraryDependencies += "io.github.sungiant" %% "zenith-plugins" % "0.1.0")
+    .settings (libraryDependencies += "io.github.sungiant" %% "zenith" % zenithVersion)
+    .settings (libraryDependencies += "io.github.sungiant" %% "zenith-netty" % zenithVersion)
+    .settings (libraryDependencies += "io.github.sungiant" %% "zenith-plugins" % zenithVersion)
     .dependsOn (demo % "test->test;compile->compile")
 
   lazy val demo_bot = project
@@ -78,7 +82,7 @@ trait SbtDemoBuild { this: SbtCommonConfig =>
     .settings (commonSettings: _*)
     .settings (connectInput in run := true)
     .settings (fork in run := true)
-    .settings (libraryDependencies += "io.github.sungiant" %% "zenith" % "0.1.0")
-    .settings (libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.1.0")
+    .settings (libraryDependencies += "io.github.sungiant" %% "zenith" % zenithVersion)
+    .settings (libraryDependencies += "io.github.sungiant" %% "zenith-netty" % zenithVersion)
     .dependsOn (demo % "test->test;compile->compile")
 }
