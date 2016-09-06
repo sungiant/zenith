@@ -51,6 +51,37 @@ import java.io.PrintStream
  */
 
 /**
+ * ContentType
+ */
+object ContentType {
+  def guessFromPath (path: String) = {
+    val p = path.toLowerCase
+    if (p.endsWith (".html") || p.endsWith (".html")) "text/html"
+    else if (p.endsWith (".css"))   "text/css"
+    else if (p.endsWith (".js"))    "text/javascript"
+    else if (p.endsWith (".csv"))   "text/csv"
+    else if (p.endsWith (".xml"))   "application/xml"
+    else if (p.endsWith (".json"))  "application/json"
+    else if (p.endsWith (".png"))   "image/png"
+    else if (p.endsWith (".jpg"))   "image/jpg"
+    else if (p.endsWith (".jpeg"))  "image/jpg"
+    else if (p.endsWith (".gif"))   "image/gif"
+    else if (p.endsWith (".tga"))   "image/tga"
+    else "text/plain"
+  }
+
+  def isPrintable (contentType: String) = contentType match {
+    case x if x.contains ("text/css")
+       || x.contains ("text/javascript")
+       || x.contains ("text/csv")
+       || x.contains ("application/xml")
+       || x.contains ("application/json")
+       || x.contains ("text/plain") => true
+    case _ => false
+  }
+}
+
+/**
  * HttpExchange
  */
 final case class HttpExchange (request: HttpRequest, result: Throwable Either HttpResponse, timeMs: Int)
@@ -125,7 +156,7 @@ final case class HttpRequest (
     case Array (_, query) => Some (query)
   }
 
-  def toPrettyString = {
+  lazy val toPrettyString = {
     val lineT = s"$method $requestUri $version"
     val lineHP = s"Host: $host port $hostPort"
     val linesH = headers
@@ -138,10 +169,34 @@ final case class HttpRequest (
       case _ => lineT :: lineHP :: linesH
     }).map (x => s"--> $x").mkString ("\n")
   }
+
+  lazy val queryParameterMap: Map[String, String] = {
+    val empty = Map.empty[String, String]
+    import cats.implicits._
+    requestUri.split ("\\?").toList match {
+      case (head :: tail :: Nil) =>
+        tail
+          .split ("&")
+          .toList
+          .map (x => x.split ("=").toList)
+          .collect { case k :: v :: Nil => Map (k -> v) }
+          .foldLeft (empty)((x, i) => x |+| i)
+      case _ => empty
+    }
+  }
 }
 object HttpRequest {
-  def createFromUrl (
-    url: String, method: String = "GET", headers: Option[Map[String, String]] = None, data: List[Byte] = Nil)
+  def createJson     (url: String, method: String = "GET", rawBody: String = "", userHeaders: Map[String, String] = Map ()) = createEx (url, method, rawBody, userHeaders, "application/json;charset=utf-8")
+  def createPlain    (url: String, method: String = "GET", rawBody: String = "", userHeaders: Map[String, String] = Map ()) = createEx (url, method, rawBody, userHeaders, "text/plain;charset=utf-8")
+  
+  private def createEx (url: String, method: String, rawBody: String, userHeaders: Map[String, String], contentType: String) = {
+    val b = rawBody.trim ().getBytes(utf8).toList
+    val h = userHeaders ++ Map ("Content-Type" -> contentType, "Content-Length" -> b.length.toString )
+    create (url, method, h, b)
+  }
+
+  def create (
+    url: String, method: String = "GET", headers: Map[String, String] = Map (), data: List[Byte] = Nil)
   : HttpRequest = {
     import scala.util.matching.Regex._
     val jURL = new java.net.URL (url)
@@ -164,26 +219,9 @@ object HttpRequest {
       case x => x
     }
 
-    val _headers = headers match {
-      case None => Map[String, String]()
-      case Some (x) => x }
+    val _headers = headers
 
     HttpRequest (method, _requestUri, "HTTP/1.1", _host, _port, _headers, data)
-  }
-
-  def getQueryParameterMap (request: HttpRequest): Map[String, String] = {
-    val empty = Map.empty[String, String]
-    import cats.implicits._
-    request.requestUri.split ("\\?").toList match {
-      case (head :: tail :: Nil) =>
-        tail
-          .split ("&")
-          .toList
-          .map (x => x.split ("=").toList)
-          .collect { case k :: v :: Nil => Map (k -> v) }
-          .foldLeft (empty)((x, i) => x |+| i)
-      case _ => empty
-    }
   }
 }
 
@@ -195,7 +233,7 @@ final case class HttpResponse (
   data: List[Byte] = Nil,
   headers: Map[String, String] = Map (),
   version: String = "HTTP/1.1") extends HttpCommon {
-  def toPrettyString: String = {
+  lazy val toPrettyString: String = {
     val lineT = s"$version $code ${HttpResponse.codes.getOrElse (code, "?")}"
     val linesH = headers.map { case (k, v) => s"$k: $v" }.toList
     ((contentType.exists (ContentType.isPrintable), body) match {
@@ -206,36 +244,7 @@ final case class HttpResponse (
   }
 }
 object HttpResponse {
-  private val utf8 = java.nio.charset.Charset.forName ("UTF-8")
-  def json (code: Int, body: String, headers: Map[String, String]) =        { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "application/json;charset=utf-8", "Content-Length" -> b.length.toString )) }
-  def xml (code: Int, body: String, headers: Map[String, String]) =         { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "application/xml;charset=utf-8", "Content-Length" -> b.length.toString )) }
-  def js (code: Int, body: String, headers: Map[String, String]) =          { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/javascript;charset=utf-8", "Content-Length" -> b.length.toString )) }
-  def html (code: Int, body: String, headers: Map[String, String]) =        { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/html;charset=utf-8", "Content-Length" -> b.length.toString )) }
-  def css (code: Int, body: String, headers: Map[String, String]) =         { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/css;charset=utf-8", "Content-Length" -> b.length.toString )) }
-  def csv (code: Int, body: String, headers: Map[String, String]) =         { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/csv;charset=utf-8", "Content-Length" -> b.length.toString )) }
-  def plain (code: Int, body: String, headers: Map[String, String]) =       { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/plain;charset=utf-8", "Content-Length" -> b.length.toString )) }
-  def formEncoded (code: Int, body: String, headers: Map[String, String]) = { val b = body.trim ().getBytes(utf8).toList; HttpResponse (code, b, headers ++ Map ("Content-Type" -> "text/xml;charset=utf-8", "Content-Length" -> b.length.toString )) }
-
-  def json (code: Int, body: String): HttpResponse = json (code, body, Map ())
-  def xml (code: Int, body: String): HttpResponse = xml (code, body, Map ())
-  def js (code: Int, body: String): HttpResponse = js (code, body, Map ())
-  def html (code: Int, body: String): HttpResponse = html (code, body, Map ())
-  def css (code: Int, body: String): HttpResponse = css (code, body, Map ())
-  def csv (code: Int, body: String): HttpResponse = csv (code, body, Map ())
-  def plain (code: Int, body: String): HttpResponse = plain (code, body, Map ())
-  def formEncoded (code: Int, body: String): HttpResponse = formEncoded (code, body, Map ())
-
-  def json (code: Int): HttpResponse = json (code, codes (code), Map ())
-  def xml (code: Int): HttpResponse = xml (code, codes (code), Map ())
-  def js (code: Int): HttpResponse = js (code, codes (code), Map ())
-  def html (code: Int): HttpResponse = html (code, codes (code), Map ())
-  def css (code: Int): HttpResponse = css (code, codes (code), Map ())
-  def csv (code: Int): HttpResponse = csv (code, codes (code), Map ())
-  def plain (code: Int): HttpResponse = plain (code, codes (code), Map ())
-  def formEncoded (code: Int): HttpResponse = formEncoded (code, codes (code), Map ())
-
-
-  private val codes = Map (
+  val codes = Map (
     100 -> "Continue", 101 -> "Switching Protocols", 102 -> "Processing",
 
     200 -> "OK", 201 -> "Created", 202 -> "Accepted", 203 -> "Non-Authoritative Information", 204 -> "No Content",
@@ -253,35 +262,20 @@ object HttpResponse {
     504 -> "Gateway Timeout", 505 -> "HTTP Version Not Supported", 506 -> "Variant Also Negotiates",
     507 -> "Insufficient Storage", 508 -> "Loop Detected", 509 -> "Bandwidth Limit Exceeded", 510 -> "Not Extended",
     511 -> "Network Authentication Required", 520 -> "Unknown Error", 598 -> "Network Read Timeout Error",
-    599 -> "Network Connect Timeout Error"
-  )
-}
+    599 -> "Network Connect Timeout Error")
 
-object ContentType {
-  def guessFromPath (path: String) = {
-    val p = path.toLowerCase
-    if (p.endsWith (".html") || p.endsWith (".html")) "text/html"
-    else if (p.endsWith (".css"))   "text/css"
-    else if (p.endsWith (".js"))    "text/javascript"
-    else if (p.endsWith (".csv"))   "text/csv"
-    else if (p.endsWith (".xml"))   "application/xml"
-    else if (p.endsWith (".json"))  "application/json"
-    else if (p.endsWith (".png"))   "image/png"
-    else if (p.endsWith (".jpg"))   "image/jpg"
-    else if (p.endsWith (".jpeg"))  "image/jpg"
-    else if (p.endsWith (".gif"))   "image/gif"
-    else if (p.endsWith (".tga"))   "image/tga"
-    else "text/plain"
+  def createJson        (code: Int, rawBody: String, userHeaders: Map[String, String] = Map ()) = createEx (code, rawBody, userHeaders, "application/json;charset=utf-8")
+  def createPlain       (code: Int, rawBody: String, userHeaders: Map[String, String] = Map ()) = createEx (code, rawBody, userHeaders, "text/plain;charset=utf-8")
+  def createPlain       (code: Int, rawBody: String): HttpResponse = createPlain (code, rawBody, Map ())
+  def createPlain       (code: Int, userHeaders: Map[String, String]): HttpResponse = createPlain (code, HttpResponse.codes (code), userHeaders)
+  def createPlain       (code: Int): HttpResponse = createPlain (code, HttpResponse.codes (code), Map ())
+
+  private def createEx (code: Int, rawBody: String, userHeaders: Map[String, String], contentType: String) = {
+    val b = rawBody.trim ().getBytes(utf8).toList
+    val h = userHeaders ++ Map ("Content-Type" -> contentType, "Content-Length" -> b.length.toString )
+    create (code, h, b)
   }
 
-  def isPrintable (contentType: String) = contentType match {
-    case x if x.contains ("text/css")
-       || x.contains ("text/javascript")
-       || x.contains ("text/csv")
-       || x.contains ("application/xml")
-       || x.contains ("application/json")
-       || x.contains ("text/plain") => true
-    case _ => false
-  }
+  def create (code: Int, headers: Map[String, String] = Map (), data: List[Byte] = Nil) = HttpResponse (code, data, headers)
 }
 

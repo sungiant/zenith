@@ -113,6 +113,6 @@ final class NettyHttpClientProvider[Z[_]: zenith.Context] extends zenith.HttpCli
     case ex: Throwable => for {
       _ <- zenith.Logger[Z].error (s"Crap, something is wrong: ${ex.getMessage}")
       _ <- zenith.Logger[Z].error (ex.getStackTrace.toString)
-    } yield zenith.HttpResponse.plain (500, "FUCK")
+    } yield zenith.HttpResponse.createPlain (500, "FUCK")
   }
 }

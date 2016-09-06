@@ -27,8 +27,8 @@ private [this] final class NettyServerHandler[Z[_]: zenith.Context] (
 
   private def nettyErrorResponse (msg: String, throwableOpt: Option[Throwable]) = toNetty {
     throwableOpt match {
-        case None => zenith.HttpResponse.json (500, s"""{ "error": "Netty error - $msg" }""") 
-        case Some (t) => zenith.HttpResponse.json (500, s"""{
+        case None => zenith.HttpResponse.createJson (500, s"""{ "error": "Netty error - $msg" }""") 
+        case Some (t) => zenith.HttpResponse.createJson (500, s"""{
             "error": "Netty error - $msg",
             "details": "${t.getMessage}",
             "stack": "${t.getCause.getStackTrace.mkString ("\n")}"

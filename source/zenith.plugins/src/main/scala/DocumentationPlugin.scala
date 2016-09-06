@@ -48,7 +48,7 @@ package object documentation {
     def docs (request: HttpRequest): Z[HttpResponse] = {
       import io.circe.syntax._
       val c = config ()
-      Async[Z].success (HttpResponse.json (200, Documentation (c.identifier, c.services.map (_.attributes)).asJson.noSpaces))
+      Async[Z].success (HttpResponse.createJson (200, Documentation (c.identifier, c.services.map (_.attributes)).asJson.noSpaces))
     }
   }
 }

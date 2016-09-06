@@ -16,7 +16,7 @@ trait StringExtensions {
       val a = "(?<=[A-Z])(?=[A-Z][a-z])"
       val b = "(?<=[^A-Z])(?=[A-Z])"
       val c = "(?<=[A-Za-z])(?=[^A-Za-z])"
-      s"$a|$b|$c".r.replaceAllIn (s, " ")
+      s"$a|$b|$c".r.replaceAllIn (s, " ").toLowerCase
     }
   }
 }

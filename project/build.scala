@@ -12,7 +12,7 @@ import sbtrelease.ReleasePlugin.autoImport._
 import com.typesafe.sbt.SbtPgp.autoImport._
 
 object SbtBuild extends Build with SbtCommonConfig with SbtZenithBuild {
-  lazy val default = project
+  lazy val root = project
     .in (file ("."))
     .settings (buildSettings: _*)
     .settings (commonSettings: _*)

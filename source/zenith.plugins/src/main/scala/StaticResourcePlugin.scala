@@ -85,7 +85,7 @@ def run (httpRequest: HttpRequest): Z[HttpResponse Either HttpRequest] = for {
           _ <- log (ZENITH, DEBUG, s"Found static resource at PATH: ${fileHandle.path}, URL: ${fileHandle.url}")
           bytes <- getBytes[Z](fileHandle)
         } yield bytes match {
-          case None | Some (Nil) => Some (HttpResponse.plain (404, "Not Found"))
+          case None | Some (Nil) => Some (HttpResponse.createPlain (404, "Not Found"))
           case Some (content) =>
             import java.text.SimpleDateFormat
             import java.util.Calendar

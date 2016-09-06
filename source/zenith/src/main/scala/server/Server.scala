@@ -77,10 +77,10 @@ final case class HttpServer[Z[_]: Context] (config: HttpServerConfig[Z], plugins
       case Success (s) => s
       case Failure (f) => for {
         _ <- log (ZENITH, ERROR, s"User `process` function failed for request: ${f.getStackTrace.mkString ("\n  ")}")
-        response <- Async[Z].success { HttpResponse.plain (500) }
+        response <- Async[Z].success { HttpResponse.createPlain (500) }
       } yield response
     }
-    Logger[Z].printAndClear (System.out, result, HttpResponse.plain (500, "Something is wrong..."), config.verbosity, config.channelFilters)
+    Logger[Z].printAndClear (System.out, result, HttpResponse.createPlain (500, "Something is wrong..."), config.verbosity, config.channelFilters)
   }
 
   private def processZ (request: HttpRequest)
@@ -94,7 +94,7 @@ final case class HttpServer[Z[_]: Context] (config: HttpServerConfig[Z], plugins
         case Some (fn) => fn ()
         case None => for {
           _ <- log (ZENITH, DEBUG, s"No suitable handler found.")
-        } yield HttpResponse.plain (404)
+        } yield HttpResponse.createPlain (404)
       }
       endTime = DateTime.now (DateTimeZone.UTC).getMillis
       _ <- log (ZENITH, INFO, s"Generated response @$endTime:\n${response.toPrettyString}")

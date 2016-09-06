@@ -16,15 +16,15 @@ class HttpRequestSpec extends Specification {
   "Using HttpRequest's `createFromUrl` method" should {
     val url = "https://www.google.co.uk/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=zenith"
     "provide the `host` correctly" in {
-      val req = HttpRequest.createFromUrl (url)
+      val req = HttpRequest.createPlain (url)
       req.host must_== "www.google.co.uk"
     }
     "provide the `requestUri` correctly" in {
-      val req = HttpRequest.createFromUrl (url)
+      val req = HttpRequest.createPlain (url)
       req.requestUri must_== "/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=zenith"
     }
     "provide the `path` correctly" in {
-      val req = HttpRequest.createFromUrl (url)
+      val req = HttpRequest.createPlain (url)
       req.path must_== "/webhp"
     }
   }
