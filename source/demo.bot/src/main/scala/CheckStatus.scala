@@ -9,7 +9,7 @@ import util.{Try, Success}
 sealed class CheckStatus[Z[_]: Context] (endpoint: String)
   extends ActionT [Z, RestClientState, HttpRequest, HttpResponse] {
   val request: ReaderT[Z, RestClientState, HttpRequest] = ReaderT { _ =>
-    Async[Z].success (HttpRequest.createFromUrl(s"$endpoint/status"))
+    Async[Z].success (HttpRequest.createPlain (s"$endpoint/status"))
   }
   def requestMapper: ReaderT[Z, HttpRequest, HttpRequest] = ReaderT { x => Async[Z].success { x } }
   def responseMapper: ReaderT[Z, HttpResponse, Try[HttpResponse]] = ReaderT { x => Async[Z].success { Success (x) } }

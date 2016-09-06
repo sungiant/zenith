@@ -18,7 +18,7 @@ sealed class GetLolShardMeta[Z[_]: Context] (endpoint: String, shardName: String
   }
 
   def requestMapper: ReaderT[Z, ProxyRequest, HttpRequest] = ReaderT { p => Async[Z].success {
-    HttpRequest.createFromUrl (s"$endpoint/proxy", "POST", None, p.asJson.noSpaces.getBytes (utf8).toList)
+    HttpRequest.createPlain (s"$endpoint/proxy", "POST", p.asJson.noSpaces)
   }}
 
   def responseMapper: ReaderT[Z, HttpResponse, Try[List[Shard]]] = ReaderT { r => Async[Z].success {

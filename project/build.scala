@@ -20,7 +20,7 @@ object SbtBuild extends Build with SbtCommonConfig with SbtDemoBuild {
 trait SbtCommonConfig {
 
   lazy val circeVersion = "0.5.0-M2"
-  lazy val zenithVersion = "0.1.2"
+  lazy val zenithVersion = "0.2.0"
 
   lazy val compilerOptions = Seq (
     "-deprecation",

@@ -17,7 +17,7 @@ final class StatusService[Z[_]: Context] () extends Service[Z] {
   @description ("Provides information about the current health of the service.")
   def status (request: HttpRequest): Z[HttpResponse] = for {
     _ <- Logger[Z].debug ("About to process status request.")
-    r <- Async[Z].success (HttpResponse.plain (200, s"all good @ ${DateTime.now (DateTimeZone.UTC).getMillis}"))
+    r <- Async[Z].success (HttpResponse.createPlain (200, s"all good @ ${DateTime.now (DateTimeZone.UTC).getMillis}"))
     _ <- Logger[Z].debug ("Finished processing status request.")
   } yield r
 
@@ -34,7 +34,7 @@ final class StatusService[Z[_]: Context] () extends Service[Z] {
     val freeMem = s"Free Memory: ${runtime.freeMemory / mb}mb"
     val totalMem = s"Total Memory: ${runtime.totalMemory / mb}mb"
     val maxMem = s"Max Memory: ${runtime.maxMemory / mb}mb"
-    Async[Z].success (HttpResponse.plain (200, s"$uptime\n$usedMem\n$freeMem\n$totalMem\n$maxMem"))
+    Async[Z].success (HttpResponse.createPlain (200, s"$uptime\n$usedMem\n$freeMem\n$totalMem\n$maxMem"))
   }
 
 
