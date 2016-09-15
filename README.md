@@ -8,6 +8,31 @@
 
 Zenith is a functional HTTP toolkit for Scala.
 
+## Architecture
+
+Zenith is achitected around an abstract network layer and a generic sequencing context.  This make it possible to write a web service using Zenith that allows for easily changing both the network layer implementation (Netty, Akka HTTP...) and the sequencing context (Scala Future, Twitter Future, Akka Future + WriterT Monad Transformer) that binds operations together.
+
+Zenith makes it easy to write a webservice against exactly the dependences you want, if you decide that you want your project to only have dependencies on Akka HTTP, you can do that, simply switch out the `zenith-netty` package for your own implementation of Zenith's abstract network layer using Akka HTTP.  Zenith doesn't impose such choices upon your project. 
+
+Zenith is written in a functional style; the codebase does not include a single instance of Scala's `var` keyword.
+
+The core part of Zenith, the package `zenith`, depends upon:
+
+ * [cats][cats] for functional patterns
+ * [simulacrum][simulacrum] for minimizing typeclass boilerplate
+ * [nscala-time][nscala-time] for Joda Time
+ * ...and of course a pure functional subset of the Scala language.
+
+An implementation of Zenith's abstract network layer is provided in a seperate package `zenith-netty` that additionally depends upon:
+
+* [netty][netty] an event-driven asynchronous network application framework
+
+
+An implementation of a Zenith compatible sequencing context and a handful of useful plugins are, again, provided in a seperate package `zenith-default` that additionally depends upon:
+
+ * [circe][circe] for functional JSON
+
+
 ## Getting started
 
 Zenith is currently available for Scala 2.11.
@@ -15,32 +40,25 @@ Zenith is currently available for Scala 2.11.
 To get started with SBT, simply add the following to your `build.sbt` file:
 
 ```scala
-libraryDependencies += "io.github.sungiant" %% "zenith" % "0.2.0"
+libraryDependencies += "io.github.sungiant" %% "zenith" % "0.3.0"
 ```
 
-Additionally, the following packages contain an off the shelf implementations of Zenith's abstract network layer and a handful of off the shelf plugins:
+Additionally, the `zenith-netty` package contains an off the shelf implementation of Zenith's abstract network layer:
 
 ```scala
-libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.2.0"
-libraryDependencies += "io.github.sungiant" %% "zenith-plugins" % "0.2.0"
+libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.3.0"
 ```
+
+Finally the `zenith-default` package is great for getting started, it contains an the shelf implementation of a Zenith compatible sequencing context as well as some useful Zenith plugins:
+
+```scala
+libraryDependencies += "io.github.sungiant" %% "zenith-default" % "0.3.0"
+```
+
 
 ## A working example
 
 A demo project can be found in the orphan [demo][demo] branch of this repository.
-
-## Architecture
-
-Zenith is achitected around both a generic network layer and a generic sequencing context.  This make it possible to write a web service using Zenith that allows for easily changing both the choice of network layer implementation (Netty, Akka HTTP...) and the choice of sequencing context (Scala Future, Twitter Future, Akka Future + WriterT Monad Transformer) simply by swapping in and out modules.
-
-Why is Zenith's generic architecture cool?  It makes it easy to write a webservice against Zenith with the dependences you want, if you decide that you want your project to only have dependencies on Akka HTTP, you can do that, simply switch out the `zenith-netty` package for your own implementation of Zenith's abstract network layer using Akka HTTP.  Zenith doesn't impose such choices upon your project. 
-
-Zenith is written in a functional style; the codebase does not include a single instance of Scala's `var` keyword.  The core part of Zenith is built atop:
-
- * [cats][cats] for functional patterns
- * [simulacrum][simulacrum] for minimizing typeclass boilerplate
- * [circe][circe] for functional JSON
- * ...and of course a pure functional subset of the Scala language.
 
 ## Alternatives
 
@@ -56,6 +74,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+[nscala-time]: https://github.com/nscala-time/nscala-time
 [travis]: https://travis-ci.org/sungiant/zenith
 [gitter]: https://gitter.im/sungiant/zenith?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 [maven]: https://maven-badges.herokuapp.com/maven-central/io.github.sungiant/zenith_2.11

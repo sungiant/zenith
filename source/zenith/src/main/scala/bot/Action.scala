@@ -22,10 +22,10 @@ import java.lang.reflect.{Method => ReflectedMethod}
 /**
  * Action
  */
-abstract class Action[Z[_]: Context, ClientState] {
-  def run (httpClient: HttpClient[Z], contextHandler: Z[(ClientState, Result)] => Z[(ClientState, Result)]): StateT[Z, ClientState, Result]
+abstract class Action[Z[_], ClientState] {
+  def run (httpClient: HttpClient[Z], createStartState: () => ClientState): StateT[Z, ClientState, Result]
 }
-abstract class ActionT[Z[_]: Context, ClientState, TRequest, TResponse] extends Action [Z, ClientState] {
+abstract class ActionT[Z[_]: Monad: Async: Logger, ClientState, TRequest, TResponse] extends Action [Z, ClientState] {
   def requestMapper: ReaderT[Z, TRequest, HttpRequest]
   def responseMapper: ReaderT[Z, HttpResponse, Try[TResponse]]
   def request: ReaderT[Z, ClientState, TRequest]
@@ -54,13 +54,13 @@ abstract class ActionT[Z[_]: Context, ClientState, TRequest, TResponse] extends 
     .headOption
     .getOrElse ("?")
 
-  final def run (httpClient: HttpClient[Z], contextHandler: Z[(ClientState, Result)] => Z[(ClientState, Result)]): StateT[Z, ClientState, Result] = ActionT.run (this, httpClient, contextHandler)
+  final def run (httpClient: HttpClient[Z], createStartState: () => ClientState): StateT[Z, ClientState, Result] = ActionT.run (this, httpClient, createStartState)
 }
 object ActionT {
-  private def liftStateT[Z[_], S, V] (v: Z[V])(implicit m: Monad[Z]): StateT[Z, S, V] =
+  private def liftStateT[Z[_]: Monad, S, V] (v: Z[V]): StateT[Z, S, V] =
     StateT[Z, S, V] { s => v.map ((s, _)) }
 
-  private def liftStateT[Z[_], X, V] (r: ReaderT[Z, X, V])(implicit m: Monad[Z]): StateT[Z, X, V] = {
+  private def liftStateT[Z[_]: Monad, X, V] (r: ReaderT[Z, X, V]): StateT[Z, X, V] = {
     val ms = MonadState[StateT[Z, X, ?], X]
     for {
       s <- ms.get
@@ -68,8 +68,8 @@ object ActionT {
     } yield r
   }
 
-  def run[Z[_]: Context, ClientState, TRequest, TResponse] (
-    action: ActionT[Z, ClientState, TRequest, TResponse], httpClient: HttpClient[Z], contextHandler: Z[(ClientState, Result)] => Z[(ClientState, Result)]): StateT[Z, ClientState, Result] = {
+  def run[Z[_]: Monad: Async: Logger, ClientState, TRequest, TResponse](
+    action: ActionT[Z, ClientState, TRequest, TResponse], httpClient: HttpClient[Z], createStartState: () => ClientState): StateT[Z, ClientState, Result] = {
     val ms = MonadState[StateT[Z, ClientState, ?], ClientState]
     val async = Async[Z]
     val logger = Logger[Z]
@@ -94,7 +94,7 @@ object ActionT {
       } yield r
     }
 
-    val task: StateT[Z, ClientState, Result] = for {
+    lazy val task: StateT[Z, ClientState, Result] = for {
       _ <- info (s"${action.description}")
 
       // pull out the initial state
@@ -149,7 +149,13 @@ object ActionT {
     } yield result
 
     // Apply context handler.
-    StateT[Z, ClientState, Result] { cs => contextHandler (task.run (cs)) }
+    StateT[Z, ClientState, Result] { cs =>
+      val r: Z[(ClientState, Result)] = task.run (cs)
+
+      val t: (ClientState, zenith.bot.Result) = (createStartState(), Failed)
+
+      Logger[Z].extract (r)(System.out, t)
+    }
   }
 }
 

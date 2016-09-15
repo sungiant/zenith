@@ -21,7 +21,7 @@ final case class HttpClientConfig (
 /**
  * HttpClient
  */
-final case class HttpClient[Z[_]: Context] (private val sendFn: HttpRequest => Z[HttpResponse])(config: HttpClientConfig) {
+final case class HttpClient[Z[_]: Async](private val sendFn: HttpRequest => Z[HttpResponse])(config: HttpClientConfig) {
   def send (request: HttpRequest): Z[HttpResponse] = sendFn (request)
 
   def sendEx (request: HttpRequest): Z[HttpExchange] = {

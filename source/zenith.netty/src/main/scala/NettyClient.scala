@@ -16,14 +16,18 @@ import org.jboss.netty.handler.codec.http._
 import org.jboss.netty.handler.ssl._
 import org.jboss.netty.bootstrap._
 import java.net.InetSocketAddress
+import zenith.{Async, Logger}
+import cats.Monad
 import cats.Monad.ops._
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.util.{Success, Failure}
 import NettyUtils._
+import zenith.netty._
+import zenith.Logger.Level._
 
 private [this] final case class NettySsl (host: String, port: Int, sslCtx: SslContext)
 
-private [this] final class NettyClientHandler[Z[_] : zenith.Context] (promise: zenith.Async.Promise[Z, zenith.HttpResponse])
+private [this] final class NettyClientHandler[Z[_]](promise: Async.Promise[Z, zenith.HttpResponse])
   extends SimpleChannelUpstreamHandler {
 
   override def messageReceived (ctx: ChannelHandlerContext, e: MessageEvent): Unit = try {
@@ -39,7 +43,7 @@ private [this] final class NettyClientHandler[Z[_] : zenith.Context] (promise: z
   }
 }
 
-private [this] final class NettyClientPipelineFactory[Z[_] : zenith.Context] (promise: zenith.Async.Promise[Z, zenith.HttpResponse], ssl: Option[NettySsl])
+private [this] final class NettyClientPipelineFactory[Z[_]: Async](promise: Async.Promise[Z, zenith.HttpResponse], ssl: Option[NettySsl])
   extends ChannelPipelineFactory
 {
   override def getPipeline: ChannelPipeline = {
@@ -57,7 +61,7 @@ private [this] final class NettyClientPipelineFactory[Z[_] : zenith.Context] (pr
   }
 }
 
-final class NettyHttpClientProvider[Z[_]: zenith.Context] extends zenith.HttpClientProvider[Z]
+final class NettyHttpClientProvider[Z[_]: Monad: Async: Logger] extends zenith.HttpClientProvider[Z]
 {
   import java.util.concurrent.{ExecutorService, Executors}
   import NettyUtils._
@@ -92,7 +96,7 @@ final class NettyHttpClientProvider[Z[_]: zenith.Context] extends zenith.HttpCli
 
   private def send (request: zenith.HttpRequest): Z[zenith.HttpResponse] = try {
     // I solemnly swear...
-    val p = zenith.Async[Z].promise[zenith.HttpResponse]()
+    val p = Async[Z].promise[zenith.HttpResponse]()
     // Configure SSL context if necessary.
     val ssl: Option[NettySsl] = None
     // Set up the event pipeline factory.
@@ -111,8 +115,8 @@ final class NettyHttpClientProvider[Z[_]: zenith.Context] extends zenith.HttpCli
     p.future
   } catch {
     case ex: Throwable => for {
-      _ <- zenith.Logger[Z].error (s"Crap, something is wrong: ${ex.getMessage}")
-      _ <- zenith.Logger[Z].error (ex.getStackTrace.toString)
+      _ <- zenith.Logger[Z].log (ZENITH_NETTY, ERROR, s"Crap, something is wrong: ${ex.getMessage}")
+      _ <- zenith.Logger[Z].log (ZENITH_NETTY, ERROR, ex.getStackTrace.toString)
     } yield zenith.HttpResponse.createPlain (500, "FUCK")
   }
 }

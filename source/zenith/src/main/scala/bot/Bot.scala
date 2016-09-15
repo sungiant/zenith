@@ -15,6 +15,7 @@ import cats.data._
 import cats.std.all._
 import cats.Traverse.ops._
 import cats.Monad.ops._
+import cats.Applicative.ops._
 import zenith.Extensions._
 import scala.util.Try
 import java.lang.reflect.{Method => ReflectedMethod}
@@ -39,7 +40,7 @@ object Failed extends Result { override def toString = "FAIL" }
 /**
  * Assertion
  */
-final case class Assertion[Z[_]: Context, ClientState, TRequest, TResponse] (
+final case class Assertion[Z[_]: Monad: Async: Logger, ClientState, TRequest, TResponse](
    parent: ActionT[Z, ClientState, TRequest, TResponse], fn: ReflectedMethod) {
   val id = fn.getName.splitCamelCase
   val annotations = fn.getAnnotations
@@ -55,14 +56,14 @@ final case class Assertion[Z[_]: Context, ClientState, TRequest, TResponse] (
 /**
  * Bot
  */
-abstract class Bot[Z[_]: Context, ClientState](implicit m: Monad[Z]) {
+abstract class Bot[Z[_]: Monad: Async: Logger, ClientState] {
   def createStartState (): ClientState
   val actions: List[Action[Z, ClientState]]
 
-  final def run (httpClient: HttpClient[Z], contextHandler: Z[(ClientState, Result)] => Z[(ClientState, Result)]): Z[Result] = {
+  final def run (httpClient: HttpClient[Z]): Z[Result] = {
     type V[I] = StateT[Z, ClientState, I]
     actions
-      .map (_.run (httpClient, contextHandler))
+      .map (_.run (httpClient, createStartState))
       .sequence[V, Result]
       .map (Foldable[List].fold (_))
       .runA (createStartState ())

@@ -6,20 +6,8 @@
  *   /_______ \___  >___|  /__||__| |___|  /
  *           \/   \/     \/              \/
  */
-package zenith.defaults
+package zenith.default.context
 
-/**
- * This package provides a functional implementation of a `Zenith Context`.
- *
- * This package is not required to use Zenith, rather it is simply an example of how one may choose
- * to implement a `Zenith Context`.
- *
- * The implementation uses Scala `Future` to provide the context's asynchronous functionality and a stack of
- * Monad Transformers to encapsulate all logging and errors.  This implementation could easily be changed to use a
- * Twitter or Akka `Future` in place of the Scala `Future`.
- */
-
-import zenith.{Async, HttpResponse}
 import cats.Monad.ops._
 import cats.Functor.ops._
 import cats._
@@ -29,18 +17,23 @@ import scala.util.{Try, Success, Failure}
 import scala.concurrent.{Promise, Future, ExecutionContext}
 import java.io.PrintStream
 
-object Extensions extends PrintStreamExtensions with FutureExtensions
+import zenith._
+import scala.collection.immutable.HashSet
 
-trait FutureExtensions {
+private [this] object Extensions extends PrintStreamExtensions with FutureExtensions
+
+/********************************************************************************************************************/
+
+private [this] trait FutureExtensions {
   implicit class Implicit[T](val thisF: Future[T]) {
     def mapAll[Target] (f: Try[T] => Target)(implicit ec: ExecutionContext): Future[Target] = {
       val promise = Promise[Target]()
       thisF.onComplete {
         thisR => try {
           val result = f (thisR)
-          promise success result
+          promise.success (result)
         } catch {
-          case t: Throwable => promise failure t
+          case t: Throwable => promise.failure (t)
         }
       }(ec)
       promise.future
@@ -48,10 +41,14 @@ trait FutureExtensions {
   }
 }
 
-trait PrintStreamExtensions {
-  implicit class Implicit (val out: PrintStream) {
+/********************************************************************************************************************/
 
-    import scala.io.AnsiColor, java.util.Locale
+private [this] trait PrintStreamExtensions {
+  implicit class Implicit (val out: PrintStream) {
+    
+    import java.util.Locale
+    import scala.io.AnsiColor
+
     private lazy val isANSISupported = {
       Option (System.getProperty ("sbt.log.noformat")).map (_ != "true").orElse {
         Option (System.getProperty ("os.name"))
@@ -66,7 +63,8 @@ trait PrintStreamExtensions {
       colours.getOrElse (level.name, AnsiColor.BLACK) + level.name + AnsiColor.RESET
     }
 
-    def printLog (channel: Option[String], level: zenith.Logger.Level, message: String): Unit = {
+    // Prints a single log to the print stream.
+    def printLog (channel: Option[String], level: zenith.Logger.Level, message: String)(colourLogsIfPossible: Boolean = true): Unit = {
       def ident (withAnsiColours: Boolean) = withAnsiColours match {
         case true =>
           channel match {
@@ -80,17 +78,19 @@ trait PrintStreamExtensions {
           }
       }
 
+      val printPrettyLogs = isANSISupported && colourLogsIfPossible
+
       // TODO: Add proper support for filtering logs by channel and debug.  Right now this is just hard coded to hide all
       (channel, level) match {
-        //case (zenith.Logger.ZENITH, zenith.Logger.Level.DEBUG) => ()
+        //case (zenith.Logger.ZENITH_DEFAULT, zenith.Logger.Level.DEBUG) => ()
         case _ =>
           message.split ('\n').toList match {
             case head :: tail =>
               val padding = " " * ident (withAnsiColours = false).size
-              out.println (ident (isANSISupported) + head)
+              out.println (ident (printPrettyLogs) + head)
               tail.foreach (m => out.println (padding + m))
             case _ =>
-              out.println (ident (isANSISupported) + message)
+              out.println (ident (printPrettyLogs) + message)
           }
       }
     }

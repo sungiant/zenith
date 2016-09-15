@@ -6,10 +6,10 @@
  *   /_______ \___  >___|  /__||__| |___|  /
  *           \/   \/     \/              \/
  */
+package zenith
 
-package object zenith {
-  lazy val ZENITH: Option[Logger.Channel] = Some ("ZENITH")
-  lazy val utf8 = java.nio.charset.Charset.forName ("UTF-8")
-  lazy val maxPrintableMessageBodySize = 1024
-  lazy val longMessageBodyReplacementText = "(message body too long to print)"
+package object netty {
+
+  lazy val ZENITH_NETTY: Option[Logger.Channel] = Some ("ZENITH_NETTY")
+
 }

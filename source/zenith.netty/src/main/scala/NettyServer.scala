@@ -16,13 +16,16 @@ import org.jboss.netty.handler.codec.http._
 import org.jboss.netty.handler.ssl._
 import org.jboss.netty.bootstrap._
 import java.net.InetSocketAddress
+import zenith.{Async, Logger}
+import cats.Monad
 import cats.Monad.ops._
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.util.{Success, Failure}
 import NettyUtils._
+import zenith.netty._
+import zenith.Logger.Level._
 
-private [this] final class NettyServerHandler[Z[_]: zenith.Context] (
-    processFn: zenith.HttpRequest => Z[zenith.HttpResponse])(implicit logger: zenith.Logger[Z])
+private [this] final class NettyServerHandler[Z[_]: Monad: Async: Logger](processFn: zenith.HttpRequest => Z[zenith.HttpResponse])
   extends SimpleChannelUpstreamHandler {
 
   private def nettyErrorResponse (msg: String, throwableOpt: Option[Throwable]) = toNetty {
@@ -41,10 +44,10 @@ private [this] final class NettyServerHandler[Z[_]: zenith.Context] (
     //if (request.isChunked) ???
     val sgRequest = toZenith (request)
     val zenithResponseZ: Z[zenith.HttpResponse] = processFn (sgRequest)
-    zenith.Async[Z].transform (zenithResponseZ) {
+    Async[Z].transform (zenithResponseZ) {
       case Success (sgResponse) => toNetty (sgResponse)
       case Failure (t) => for {
-        _ <- logger.error (s"[NettyServerHandler] Failed to process request $sgRequest")
+        _ <- Logger[Z].log (ZENITH_NETTY, ERROR, s"[NettyServerHandler] Failed to process request $sgRequest")
       } yield nettyErrorResponse ("Failed to process request", Option (t))
     }.map (e.getChannel.write (_).addListener (ChannelFutureListener.CLOSE))
   }
@@ -55,9 +58,9 @@ private [this] final class NettyServerHandler[Z[_]: zenith.Context] (
   }
 }
 
-private [this] final class NettyServerPipelineFactory[Z[_]: zenith.Context] (
-    processFn: zenith.HttpRequest => Z[zenith.HttpResponse])
+private [this] final class NettyServerPipelineFactory[Z[_]: Monad: Async: Logger](processFn: zenith.HttpRequest => Z[zenith.HttpResponse])
   extends ChannelPipelineFactory {
+
   override def getPipeline: ChannelPipeline = {
     val pipeline = Channels.pipeline
     pipeline.addLast ("decoder", new HttpRequestDecoder ())
@@ -69,7 +72,9 @@ private [this] final class NettyServerPipelineFactory[Z[_]: zenith.Context] (
   }
 }
 
-final class NettyHttpServerProvider[Z[_]: zenith.Context] extends zenith.HttpServerProvider[Z] {
+final class NettyHttpServerProvider[Z[_]: Monad: Async: Logger]
+  extends zenith.HttpServerProvider[Z] {
+
   private var server: Option[zenith.server.HttpServer[Z]] = None
   private var bootstrap: ServerBootstrap = null
   private var boss: ExecutorService = null

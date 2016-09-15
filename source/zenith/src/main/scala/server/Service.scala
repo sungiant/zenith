@@ -29,7 +29,7 @@ final case class EndpointAttributes (id: String, description: Option[String], me
 /**
   * Endpoint
   */
-final case class Endpoint[Z[_]: Context] (parent: Service[Z], fn: ReflectedMethod)(implicit logger: Logger[Z]) {
+final case class Endpoint[Z[_]: Monad: Async: Logger](parent: Service[Z], fn: ReflectedMethod) {
 
   lazy val attributes: EndpointAttributes = {
     val id = fn.getName.splitCamelCase
@@ -94,7 +94,7 @@ final case class Endpoint[Z[_]: Context] (parent: Service[Z], fn: ReflectedMetho
 
       val a = Try { x.asInstanceOf[Z[HttpResponse]] }.toOption
       for {
-        _ <- logger.log (ZENITH, DEBUG, s"executing handler for ${request.path}")
+        _ <- Logger[Z].log (ZENITH, DEBUG, s"executing handler for ${request.path}")
         result <- a match {
           case Some (z) => z
           case _ => throw new Exception ("Endpoint signature not supported.")
@@ -113,7 +113,7 @@ final case class ServiceAttributes (id: String, description: Option[String], end
 /**
  * Service
  */
-abstract class Service[Z[_]: Context] {
+abstract class Service[Z[_]: Monad: Async: Logger] {
 
   def requestPipeline: List[RequestFilter[Z]] = Nil
   def responsePipeline: List[ResponseMapper[Z]] = Nil

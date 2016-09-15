@@ -10,9 +10,11 @@ package zenith
 
 import simulacrum._
 import scala.util.{Try, Success, Failure}
-import cats.Monad
+import cats.std.all._
+import cats.syntax.eq._
 import zenith.Extensions._
 import java.io.PrintStream
+import scala.collection.immutable.HashSet
 
 /**
  * http://en.wikipedia.org/wiki/Uniform_resource_locator
@@ -160,7 +162,7 @@ final case class HttpRequest (
     val lineT = s"$method $requestUri $version"
     val lineHP = s"Host: $host port $hostPort"
     val linesH = headers
-      .filterNot (_._1.toLowerCase == "host")
+      .filterNot (_._1.toLowerCase === "host")
       .map { case (k, v) => s"$k: $v" }
       .toList
     ((contentType.exists (ContentType.isPrintable), body) match {
