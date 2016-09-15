@@ -1,4 +1,4 @@
-## Zenith
+# Zenith
 
 [![Build Status](https://travis-ci.org/sungiant/zenith.png?branch=master)][travis]
 [![Join the chat at https://gitter.im/sungiant/zenith](https://img.shields.io/badge/gitter-join%20chat-green.svg)][gitter]
