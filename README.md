@@ -74,6 +74,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+[netty]: https://github.com/netty/netty
 [nscala-time]: https://github.com/nscala-time/nscala-time
 [travis]: https://travis-ci.org/sungiant/zenith
 [gitter]: https://gitter.im/sungiant/zenith?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
