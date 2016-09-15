@@ -1,13 +1,13 @@
 package demo.server
 
-import demo._
+import demo.common._
 
 import zenith._
-import zenith.Context
 import zenith.client._
 import zenith.server._
 import zenith.netty._
 
+import cats.Monad
 import cats.Monad.ops._
 
 import org.joda.time.{DateTime, DateTimeZone}
@@ -20,7 +20,7 @@ import io.circe.jawn._
 import io.circe.syntax._
 import io.circe.generic.auto._
 
-final class ProxyService[Z[_]: Context] (httpClient: HttpClient[Z]) extends Service[Z] {
+final class ProxyService[Z[_]: Monad: Async: Logger] (httpClient: HttpClient[Z]) extends Service[Z] {
 
   @endpoint
   @path ("^/proxy$")

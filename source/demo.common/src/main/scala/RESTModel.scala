@@ -1,8 +1,10 @@
-package demo
+package demo.common
+
+import io.circe._
+import io.circe.generic.semiauto._
 
 final case class ProxyRequest (url: String, method: String)
 object ProxyRequest {
-  import io.circe._, io.circe.generic.semiauto._
   implicit val je = deriveEncoder[ProxyRequest]
   implicit val jd = deriveDecoder[ProxyRequest]
 }

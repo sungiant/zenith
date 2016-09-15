@@ -9,15 +9,11 @@ import zenith.netty._
 
 import scala.collection.immutable.HashSet
 import scala.io.StdIn
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Program {
-  type C[$] = defaults.CONTEXT[$]
-  import java.util.concurrent.Executors
-  import scala.concurrent.ExecutionContext
-
-  val userES = Executors.newFixedThreadPool (8)
-  val userEC = ExecutionContext.fromExecutorService (userES)
-  implicit val context = defaults.fpContext (userEC)
+  type C[$] = default.context.Type[$]
+  implicit val t = default.context.typeclassImplementations ()
 
   val clientProvider = new NettyHttpClientProvider[C]
   val serverProvider = new NettyHttpServerProvider[C]
@@ -27,15 +23,13 @@ object Program {
 
   class DemoServerConfig (client: HttpClient[C]) extends HttpServerConfig[C] (name, port) {
     override val services = new StatusService[C] () :: new ProxyService[C] (client) :: Nil
-    override val verbosity = Logger.Level.DEBUG
-    override val channelFilters = HashSet.empty[Logger.Channel]
   }
 
   def startService (): Unit = {
     val clientConfig = HttpClientConfig ()
     val client = clientProvider.create (clientConfig)
     val serverConfig = new DemoServerConfig (client)
-    val plugins: List[Plugin[C]] = new zenith.server.plugins.documentation.DocumentationPlugin[C](() => serverConfig) :: Nil
+    val plugins: List[Plugin[C]] = new default.plugins.documentation.DocumentationPlugin[C](() => serverConfig) :: Nil
     serverProvider.create (serverConfig, plugins)
   }
 
@@ -56,7 +50,6 @@ object Program {
     System.out.println (s"$name is now running on localhost:$port")
     StdIn.readLine ()
     stopService ()
-    userES.shutdown ()
 
     sys.exit (0)
   }

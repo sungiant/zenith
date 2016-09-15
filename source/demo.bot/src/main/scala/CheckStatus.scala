@@ -1,12 +1,13 @@
 package demo.bot
 
-import demo._
+import demo.common._
 import zenith._, zenith.bot._
+import cats.Monad
 import cats.data._
 import util.{Try, Success}
 
 @description ("Check that the server side status page is running as expected")
-sealed class CheckStatus[Z[_]: Context] (endpoint: String)
+sealed class CheckStatus[Z[_]: Monad: Async: Logger] (endpoint: String)
   extends ActionT [Z, RestClientState, HttpRequest, HttpResponse] {
   val request: ReaderT[Z, RestClientState, HttpRequest] = ReaderT { _ =>
     Async[Z].success (HttpRequest.createPlain (s"$endpoint/status"))

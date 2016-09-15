@@ -1,13 +1,14 @@
 package demo.bot
 
-import demo._
+import demo.common._
 import zenith._, zenith.bot._
+import cats.Monad
 import cats.data._
 
 import scala.util.{Success, Failure, Try}
 
 @description ("Get detailed shard info about a random specific shard from the LoL developer API.")
-sealed class GetLolShardDetails[Z[_]: Context] (endpoint: String)
+sealed class GetLolShardDetails[Z[_]: Monad: Async: Logger] (endpoint: String)
   extends ActionT [Z, RestClientState, ProxyRequest, ShardStatus] {
   import io.circe.jawn._, io.circe.syntax._
   private val utf8 = java.nio.charset.Charset.forName ("UTF-8")

@@ -1,6 +1,7 @@
-package demo
+package demo.common
 
-import io.circe._, io.circe.generic.semiauto._
+import io.circe._
+import io.circe.generic.semiauto._
 
 final case class IncidentMessageTranslation (content: String, locale: String, heading: String)
 object IncidentMessageTranslation {

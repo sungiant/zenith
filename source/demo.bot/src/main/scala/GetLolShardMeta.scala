@@ -1,13 +1,14 @@
 package demo.bot
 
-import demo._
+import demo.common._
 import zenith._, zenith.bot._
+import cats.Monad
 import cats.data._
 
 import scala.util.{Success, Try, Failure}
 
 @description ("Get high level shard info from the LoL developer API.")
-sealed class GetLolShardMeta[Z[_]: Context] (endpoint: String, shardName: String)
+sealed class GetLolShardMeta[Z[_]: Monad: Async: Logger] (endpoint: String, shardName: String)
   extends ActionT [Z, RestClientState, ProxyRequest, List[Shard]] {
   import io.circe.jawn._, io.circe.syntax._
 
