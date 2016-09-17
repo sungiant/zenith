@@ -74,8 +74,7 @@ trait SbtCommonConfig {
 
   lazy val noPublishSettings =
     (publish := ()) ::
-    (publishLocal := ()) ::
-    (publishArtifact := false) :: Nil
+    (publishLocal := ()) :: Nil
 
   lazy val publishSettings =
     (releaseCrossBuild := true) ::

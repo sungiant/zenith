@@ -24,7 +24,7 @@ abstract class HttpClientProvider[Z[_]]
  * HttpServerProvider
  */
 abstract class HttpServerProvider[Z[_]] {
-  def create (config: server.HttpServerConfig[Z], plugins: List[server.Plugin[Z]]): server.HttpServer[Z]
+  def create (config: server.HttpServerConfig[Z], plugins: List[server.HttpServerPlugin[Z]]): server.HttpServer[Z]
   def getServer (): Option[server.HttpServer[Z]]
   def destroy (): Unit
 }

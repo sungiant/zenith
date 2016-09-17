@@ -47,7 +47,7 @@ private [this] final class NettyServerHandler[Z[_]: Monad: Async: Logger](proces
     Async[Z].transform (zenithResponseZ) {
       case Success (sgResponse) => toNetty (sgResponse)
       case Failure (t) => for {
-        _ <- Logger[Z].log (ZENITH_NETTY, ERROR, s"[NettyServerHandler] Failed to process request $sgRequest")
+        _ <- Logger[Z].log (LOG_CH, ERROR, s"[NettyServerHandler] Failed to process request $sgRequest")
       } yield nettyErrorResponse ("Failed to process request", Option (t))
     }.map (e.getChannel.write (_).addListener (ChannelFutureListener.CLOSE))
   }
@@ -82,7 +82,7 @@ final class NettyHttpServerProvider[Z[_]: Monad: Async: Logger]
 
   def getServer (): Option[zenith.server.HttpServer[Z]] = server
 
-  def create (config: zenith.server.HttpServerConfig[Z], plugins: List[zenith.server.Plugin[Z]]): zenith.server.HttpServer[Z] = {
+  def create (config: zenith.server.HttpServerConfig[Z], plugins: List[zenith.server.HttpServerPlugin[Z]]): zenith.server.HttpServer[Z] = {
     server match {
       case Some (s) => s
       case None =>

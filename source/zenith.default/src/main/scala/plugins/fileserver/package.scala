@@ -6,10 +6,12 @@
  *   /_______ \___  >___|  /__||__| |___|  /
  *           \/   \/     \/              \/
  */
-package zenith
+package zenith.default.plugins
 
-package object default {
+import zenith._
 
-  lazy val ZENITH_DEFAULT: Option[Logger.Channel] = Some ("ZENITH_DEFAULT")
+package object fileserver {
+
+  val LOGCH: Option[Logger.Channel] = Some ("FILESRV_PLUGIN")
 
 }

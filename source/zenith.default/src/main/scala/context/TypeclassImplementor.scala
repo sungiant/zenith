@@ -128,12 +128,8 @@ private [this] object TypeclassImplementor {
 
     override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): Type[Unit] = {
       Try { LoggingContext.log (channel, level, message) } match {
-        case Success (s) =>
-            //println (s)
-            XorT.right[WF, Throwable, Unit](WriterT.put[Future, LoggingContext, Unit](())(s))
-        case Failure (f) =>
-            //println (f)
-            XorT.left[WF, Throwable, Unit](WriterT.value[Future, LoggingContext, Throwable](f))
+        case Success (s) => XorT.right[WF, Throwable, Unit](WriterT.put[Future, LoggingContext, Unit](())(s))
+        case Failure (f) => XorT.left[WF, Throwable, Unit](WriterT.value[Future, LoggingContext, Throwable](f))
       }
     }
   }

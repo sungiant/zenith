@@ -10,6 +10,6 @@ package zenith
 
 package object netty {
 
-  lazy val ZENITH_NETTY: Option[Logger.Channel] = Some ("ZENITH_NETTY")
+  lazy val LOG_CH: Option[Logger.Channel] = Some ("ZENITH_NETTY")
 
 }

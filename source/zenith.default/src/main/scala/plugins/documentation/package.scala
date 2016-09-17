@@ -27,4 +27,6 @@ package object documentation {
   implicit val jeEndpointAttributes = deriveEncoder[EndpointAttributes]
   implicit val jeServiceAttributes = deriveEncoder[ServiceAttributes]
 
+  val LOGCH: Option[Logger.Channel] = Some ("DOCS_PLUGIN")
+
 }

@@ -115,8 +115,8 @@ final class NettyHttpClientProvider[Z[_]: Monad: Async: Logger] extends zenith.H
     p.future
   } catch {
     case ex: Throwable => for {
-      _ <- zenith.Logger[Z].log (ZENITH_NETTY, ERROR, s"Crap, something is wrong: ${ex.getMessage}")
-      _ <- zenith.Logger[Z].log (ZENITH_NETTY, ERROR, ex.getStackTrace.toString)
+      _ <- zenith.Logger[Z].log (LOG_CH, ERROR, s"Crap, something is wrong: ${ex.getMessage}")
+      _ <- zenith.Logger[Z].log (LOG_CH, ERROR, ex.getStackTrace.toString)
     } yield zenith.HttpResponse.createPlain (500, "FUCK")
   }
 }

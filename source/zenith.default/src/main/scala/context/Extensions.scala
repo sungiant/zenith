@@ -82,7 +82,7 @@ private [this] trait PrintStreamExtensions {
 
       // TODO: Add proper support for filtering logs by channel and debug.  Right now this is just hard coded to hide all
       (channel, level) match {
-        //case (zenith.Logger.ZENITH_DEFAULT, zenith.Logger.Level.DEBUG) => ()
+        //case (zenith.Logger.LOGCH, zenith.Logger.Level.DEBUG) => ()
         case _ =>
           message.split ('\n').toList match {
             case head :: tail =>
