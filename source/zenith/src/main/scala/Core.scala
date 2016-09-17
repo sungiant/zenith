@@ -266,6 +266,7 @@ object HttpResponse {
     511 -> "Network Authentication Required", 520 -> "Unknown Error", 598 -> "Network Read Timeout Error",
     599 -> "Network Connect Timeout Error")
 
+  def createHtml        (code: Int, rawBody: String, userHeaders: Map[String, String] = Map ()) = createEx (code, rawBody, userHeaders, "text/html;charset=utf-8")
   def createJson        (code: Int, rawBody: String, userHeaders: Map[String, String] = Map ()) = createEx (code, rawBody, userHeaders, "application/json;charset=utf-8")
   def createPlain       (code: Int, rawBody: String, userHeaders: Map[String, String] = Map ()) = createEx (code, rawBody, userHeaders, "text/plain;charset=utf-8")
   def createPlain       (code: Int, rawBody: String): HttpResponse = createPlain (code, rawBody, Map ())
