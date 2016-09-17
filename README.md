@@ -64,6 +64,7 @@ An implementation of a Zenith compatible sequencing context and a handful of use
 ## Alternatives
 
 * [unfiltered][unfiltered] a toolkit for servicing HTTP requests
+* [finch][finch] a combinator library for building Finagle HTTP services
 
 ## License
 
@@ -87,3 +88,4 @@ limitations under the License.
 [simulacrum]: https://github.com/mpilquist/simulacrum
 [cats]: https://github.com/typelevel/cats
 [demo]: https://github.com/sungiant/zenith/tree/demo
+[finch]: https://github.com/finagle/finch
