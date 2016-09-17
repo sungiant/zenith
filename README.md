@@ -49,7 +49,6 @@ The core part of Zenith, the package `zenith`, depends upon:
  * [cats][cats] for functional patterns
  * [simulacrum][simulacrum] for minimizing typeclass boilerplate
  * [nscala-time][nscala-time] for Joda Time
- * ...and of course a pure functional subset of the Scala language.
 
 An implementation of Zenith's abstract network layer is provided in a seperate package `zenith-netty` that additionally depends upon:
 
