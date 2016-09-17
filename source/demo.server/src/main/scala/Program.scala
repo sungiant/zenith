@@ -29,7 +29,10 @@ object Program {
     val clientConfig = HttpClientConfig ()
     val client = clientProvider.create (clientConfig)
     val serverConfig = new DemoServerConfig (client)
-    val plugins: List[Plugin[C]] = new default.plugins.documentation.DocumentationPlugin[C](() => serverConfig) :: Nil
+    val plugins: List[HttpServerPlugin[C]] =
+      new default.plugins.documentation.DocumentationPlugin[C](() => serverConfig) ::
+      new default.plugins.fileserver.FileServerPlugin[C](getClass.getResource, getClass.getResourceAsStream, "index.html", "/web" :: Nil) ::
+      Nil
     serverProvider.create (serverConfig, plugins)
   }
 

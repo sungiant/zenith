@@ -13,7 +13,7 @@ object Version {
   val cats = "0.6.1"
   val nscala_time = "1.6.0"
   val circe = "0.5.0-M2"
-  val zenith = "0.3.0"
+  val zenith = "0.4.0"
 }
 
 object Dependencies {
@@ -75,6 +75,7 @@ trait SbtDemoBuild { this: SbtCommonConfig =>
     .settings (commonSettings: _*)
     .settings (connectInput in run := true)
     .settings (fork in run := true)
+    .settings (unmanagedResourceDirectories in Compile += baseDirectory.value / "resources")
     .settings (libraryDependencies += Dependencies.zenith)
     .settings (libraryDependencies += Dependencies.zenith_netty)
     .settings (libraryDependencies += Dependencies.zenith_default)
