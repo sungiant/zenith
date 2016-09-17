@@ -82,8 +82,6 @@ object DemoServer {
   val name = "Demo Server"
   val port = 7777
 
-  println (getClass.getResource ("/web/index.html"))
-
   class DemoServerConfig (client: HttpClient[C]) extends HttpServerConfig[C] (name, port) {
     override val services = new StatusService[C] () :: new ProxyService[C] (client) :: Nil
   }
