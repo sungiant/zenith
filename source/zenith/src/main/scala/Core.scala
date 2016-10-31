@@ -215,8 +215,12 @@ object HttpRequest {
     }
 
     val _host = jURL.getHost
+
     val _port = jURL.getPort match {
-      case x if x < 0 => 80
+      case x if x < 0 => jURL.getDefaultPort match {
+        case y if y < 0 => 80
+        case y => y
+      }
       case x => x
     }
 
