@@ -25,6 +25,7 @@ import scala.util.{Success, Failure}
 import NettyUtils._
 import zenith.netty._
 import zenith.Logger.Level._
+import org.jboss.netty.handler.ssl.util.InsecureTrustManagerFactory
 
 private [this] final case class NettySsl (host: String, port: Int, sslCtx: SslContext)
 
@@ -44,16 +45,14 @@ private [this] final class NettyClientHandler[Z[_]](promise: Async.Promise[Z, ze
   }
 }
 
-private [this] final class NettyClientPipelineFactory[Z[_]: Async](promise: Async.Promise[Z, zenith.HttpResponse], ssl: Option[NettySsl])
+private [this] final class NettyClientPipelineFactory[Z[_]: Async](promise: Async.Promise[Z, zenith.HttpResponse], ssl: NettySsl)
   extends ChannelPipelineFactory
 {
   override def getPipeline: ChannelPipeline = {
     // Create a default pipeline implementation.
     val pipeline = Channels.pipeline
-    ssl match {
-      case Some (conf) => pipeline.addLast ("ssl", conf.sslCtx.newHandler (conf.host, conf.port))
-      case _ => ()
-    }
+
+    pipeline.addLast ("ssl", ssl.sslCtx.newHandler (ssl.host, ssl.port))
     pipeline.addLast ("codec", new HttpClientCodec ())
     pipeline.addLast ("inflater", new HttpContentDecompressor ())
     pipeline.addLast ("aggregator", new HttpChunkAggregator (1048576))
@@ -98,8 +97,8 @@ final class NettyHttpClientProvider[Z[_]: Monad: Async: Logger] extends zenith.H
   private def send (request: zenith.HttpRequest): Z[zenith.HttpResponse] = try {
     // I solemnly swear...
     val p = Async[Z].promise[zenith.HttpResponse]()
-    // Configure SSL context if necessary.
-    val ssl: Option[NettySsl] = None
+    // Just allow all ssl.
+    val ssl = NettySsl (request.host, request.hostPort, SslContext.newClientContext(InsecureTrustManagerFactory.INSTANCE))
     // Set up the event pipeline factory.
     bootstrap.setPipelineFactory (new NettyClientPipelineFactory (p, ssl))
     // Start the connection attempt.
