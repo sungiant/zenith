@@ -17,7 +17,7 @@ import scala.util.{Try, Success, Failure}
 import cats._
 import cats.data._
 import org.joda.time.{DateTimeZone, DateTime}
-import cats.Monad.ops._
+import cats.implicits._
 import java.lang.reflect.{Method => ReflectedMethod}
 import io.circe._, io.circe.generic.semiauto._
 

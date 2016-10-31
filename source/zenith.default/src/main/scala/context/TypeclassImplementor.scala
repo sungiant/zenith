@@ -8,11 +8,11 @@
  */
 package zenith.default.context
 
-import cats.Monad.ops._
-import cats.Functor.ops._
 import cats._
 import cats.data._
+import cats.implicits._
 
+import scala.annotation.tailrec
 import scala.util.{Try, Success, Failure}
 import scala.concurrent.{Promise, Future, ExecutionContext}
 import java.io.PrintStream
@@ -37,12 +37,14 @@ private [this] object TypeclassImplementor {
       override def pure[A] (a: A): Future[A] = Future (a)(ec)
       override def flatMap[A, B] (fa: Future[A])(f: A => Future[B]): Future[B] = fa.flatMap (a => f (a))(ec)
       override def ap[A, B] (ff: Future[A => B])(fa: Future[A]): Future[B] = fa.flatMap (a => ff.map (f => f (a))(ec))(ec)
+      override def tailRecM[A, B](a: A)(f: A => Future[Either[A, B]]): Future[B] = defaultTailRecM (a)(f)
     }
 
     /** implement Monad ***********************************************************************************************/
     override def pure[A] (a: A): Type[A] = future (a)
     override def flatMap[A, B](fa: Type[A])(f: A => Type[B]): Type[B] = fa.flatMap (a => f (a))
     override def ap[A, B](ff: Type[A => B])(fa: Type[A]): Type[B] = fa.flatMap (a => ff.map (f => f (a)))
+    override def tailRecM[A, B](a: A)(f: A => Type[Either[A, B]]): Type[B] = defaultTailRecM (a)(f)
 
     /** implement Async ***********************************************************************************************/
     override def await[T](v: Type[T], seconds: Int): Either[Throwable, T] = {

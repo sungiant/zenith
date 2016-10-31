@@ -12,9 +12,7 @@ import zenith._
 import zenith.client._
 import cats._
 import cats.data._
-import cats.std.all._
-import cats.Traverse.ops._
-import cats.Monad.ops._
+import cats.implicits._
 import zenith.Extensions._
 import scala.util.{Try, Success, Failure}
 import java.lang.reflect.{Method => ReflectedMethod}

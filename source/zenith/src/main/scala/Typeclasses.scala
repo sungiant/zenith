@@ -13,8 +13,9 @@ import scala.util.{Try, Success, Failure}
 import zenith.Extensions._
 import java.io.PrintStream
 import scala.collection.immutable.HashSet
-import cats.std.all._
-import cats.syntax.eq._
+import cats._
+import cats.data._
+import cats.implicits._
 
 /**
  * Logger

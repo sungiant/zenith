@@ -12,14 +12,15 @@ import sbtrelease.ReleasePlugin.autoImport._
 import com.typesafe.sbt.SbtPgp.autoImport._
 
 object Version {
-  val cats = "0.6.1"
   val nscala_time = "1.6.0"
   val specs2 = "2.4.15"
-  val simulacrum = "0.7.0"
-  val paradise = "2.1.0"
-  val kind_projector = "0.8.0"
   val netty = "3.10.3.Final"
-  val circe = "0.5.0-M2"
+  val paradise = "2.1.0"
+
+  val cats = "0.7.2"
+  val circe = "0.5.4"
+  val kind_projector = "0.9.2"
+  val simulacrum = "0.10.0"
 }
 
 object Dependencies {
@@ -27,8 +28,8 @@ object Dependencies {
   val nscala_time = "com.github.nscala-time" %% "nscala-time" % Version.nscala_time
   val specs2 = "org.specs2" %% "specs2-core" % Version.specs2 % "test"
   val simulacrum = "com.github.mpilquist" %% "simulacrum" % Version.simulacrum
-  val paradise = "org.scalamacros" % "paradise" % Version.paradise cross CrossVersion.full
-  val kind_projector = "org.spire-math" % "kind-projector" % Version.kind_projector cross CrossVersion.binary
+  val paradise = "org.scalamacros" %% "paradise" % Version.paradise cross CrossVersion.full
+  val kind_projector = "org.spire-math" %% "kind-projector" % Version.kind_projector cross CrossVersion.binary
   val netty = "io.netty" % "netty" % Version.netty
   val circe_core = "io.circe" %% "circe-core" % Version.circe
   val circe_generic = "io.circe" %% "circe-generic" % Version.circe

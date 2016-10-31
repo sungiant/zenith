@@ -10,8 +10,7 @@ package zenith
 
 import simulacrum._
 import scala.util.{Try, Success, Failure}
-import cats.std.all._
-import cats.syntax.eq._
+import cats.implicits._
 import zenith.Extensions._
 import java.io.PrintStream
 import scala.collection.immutable.HashSet

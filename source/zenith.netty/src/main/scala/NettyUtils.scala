@@ -15,8 +15,10 @@ import org.jboss.netty.channel.socket.nio._
 import org.jboss.netty.handler.codec.http._
 import org.jboss.netty.handler.ssl._
 import org.jboss.netty.bootstrap._
+import cats._
+import cats.data._
+import cats.implicits._
 import java.net.InetSocketAddress
-import cats.Monad.ops._
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.util.{Success, Failure}
 

@@ -16,8 +16,8 @@ import zenith.Extensions._
 import scala.util.{Try, Success, Failure}
 import cats._
 import cats.data._
+import cats.implicits._
 import org.joda.time.{DateTimeZone, DateTime}
-import cats.Monad.ops._
 import java.lang.reflect.{Method => ReflectedMethod}
 import zenith.default._
 import io.circe._, io.circe.generic.semiauto._

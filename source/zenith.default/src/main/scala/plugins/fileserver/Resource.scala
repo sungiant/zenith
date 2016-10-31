@@ -14,9 +14,7 @@ import zenith.Logger._
 import zenith.Logger.Level._
 import scala.util.{Try, Success, Failure}
 import cats._
-import cats.std.all._
-import cats.Monad.ops._
-import cats.Traverse.ops._
+import cats.implicits._
 import cats.data._
 import org.joda.time.{DateTimeZone, DateTime}
 import java.lang.reflect.{Method => ReflectedMethod}

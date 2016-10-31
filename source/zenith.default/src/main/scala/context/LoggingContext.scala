@@ -8,10 +8,9 @@
  */
 package zenith.default.context
 
-import cats.Monad.ops._
-import cats.Functor.ops._
 import cats._
 import cats.data._
+import cats.implicits._
 
 import scala.util.{Try, Success, Failure}
 import scala.concurrent.{Promise, Future, ExecutionContext}
