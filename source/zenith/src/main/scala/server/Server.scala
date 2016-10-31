@@ -172,7 +172,7 @@ final case class HttpServer[Z[_]: Monad: Async: Logger](config: HttpServerConfig
 
   // Attempts to find a suitable service to handle a given request.
   private def findHandlerService (request: HttpRequest): Z[Option[Service[Z]]] = for {
-    _ <- Logger[Z].log (ZENITH, DEBUG, s"Looking to find suitable service to handle ${request.method} ${request.path}}")
+    _ <- Logger[Z].log (ZENITH, DEBUG, s"Looking to find suitable service to handle ${request.method} ${request.path}")
     serviceOpt <- Monad[Z].pure { allServices.collectFirst { case s if s.handler.isDefinedAt (request) => s } }
     _ <- serviceOpt match {
       case Some (service) => Logger[Z].log (ZENITH, DEBUG, s"Found suitable service: ${service.attributes.id}.")
