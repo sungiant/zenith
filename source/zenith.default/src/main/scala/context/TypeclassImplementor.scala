@@ -91,18 +91,25 @@ private [this] object TypeclassImplementor {
           case Left (ex) =>
             import zenith.Extensions._
             out.println (s"Task in context completed with failure, exception found within context:")
-            out.println (s"Failed context message: ${ex.getMessage}")
-            out.println (s"Failed context stack trace:")
-            out.println (ex.stackTrace)
+            var t: Throwable = ex
+            do {
+              out.println (s"Failed Future message: ${t.getMessage}")
+              out.println (s"Failed Future stack trace:")
+              out.println (t.stackTrace)
+              t = t.getCause
+            } while (t != null)
             onCrash
         }
         case Failure (f) =>
           import zenith.Extensions._
           out.println (s"Task in context completed with failed Future.")
-          out.println (s"Failed Future message: ${f.getCause.getMessage}")
-          out.println (s"Failed Future stack trace:")
-          out.println (f.getCause.stackTrace)
-
+          var t: Throwable = f
+          do {
+            out.println (s"Failed Future message: ${t.getMessage}")
+            out.println (s"Failed Future stack trace:")
+            out.println (t.stackTrace)
+            t = t.getCause
+          } while (t != null)
           onCrash
       }(ec)
 
