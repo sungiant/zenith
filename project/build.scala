@@ -12,34 +12,34 @@ import sbtrelease.ReleasePlugin.autoImport._
 import com.typesafe.sbt.SbtPgp.autoImport._
 
 object Version {
-  val nscala_time = "1.6.0"
-  val specs2 = "2.4.15"
-  val netty = "3.10.3.Final"
-  val paradise = "2.1.0"
+  val nscala_time =     "1.6.0"
+  val specs2 =          "2.4.15"
+  val netty =           "3.10.3.Final"
+  val paradise =        "2.1.0"
 
-  val cats = "0.7.2"
-  val circe = "0.5.4"
-  val kind_projector = "0.9.2"
-  val simulacrum = "0.10.0"
+  val cats =            "0.7.2"
+  val circe =           "0.5.4"
+  val kind_projector =  "0.9.2"
+  val simulacrum =      "0.10.0"
 }
 
 object Dependencies {
-  val cats = "org.typelevel" %% "cats" % Version.cats
-  val nscala_time = "com.github.nscala-time" %% "nscala-time" % Version.nscala_time
-  val specs2 = "org.specs2" %% "specs2-core" % Version.specs2 % "test"
-  val simulacrum = "com.github.mpilquist" %% "simulacrum" % Version.simulacrum
-  val paradise = "org.scalamacros" %% "paradise" % Version.paradise cross CrossVersion.full
-  val kind_projector = "org.spire-math" %% "kind-projector" % Version.kind_projector cross CrossVersion.binary
-  val netty = "io.netty" % "netty" % Version.netty
-  val circe_core = "io.circe" %% "circe-core" % Version.circe
-  val circe_generic = "io.circe" %% "circe-generic" % Version.circe
-  val circe_jawn = "io.circe" %% "circe-jawn" % Version.circe
+  val cats =            "org.typelevel" %% "cats" % Version.cats
+  val nscala_time =     "com.github.nscala-time" %% "nscala-time" % Version.nscala_time
+  val specs2 =          "org.specs2" %% "specs2-core" % Version.specs2 % "test"
+  val simulacrum =      "com.github.mpilquist" %% "simulacrum" % Version.simulacrum
+  val paradise =        "org.scalamacros" %% "paradise" % Version.paradise cross CrossVersion.full
+  val kind_projector =  "org.spire-math" %% "kind-projector" % Version.kind_projector cross CrossVersion.binary
+  val netty =           "io.netty" % "netty" % Version.netty
+  val circe_core =      "io.circe" %% "circe-core" % Version.circe
+  val circe_generic =   "io.circe" %% "circe-generic" % Version.circe
+  val circe_jawn =      "io.circe" %% "circe-jawn" % Version.circe
 }
 
 object Resolvers {
-  val sonatype = "Sonatype" at "https://oss.sonatype.org/content/repositories/releases/"
+  val sonatype =        "Sonatype" at "https://oss.sonatype.org/content/repositories/releases/"
   val sonatype_public = "Sonatype Public" at "https://oss.sonatype.org/content/groups/public/"
-  val typesafe = "Typesafe" at "http://repo.typesafe.com/typesafe/releases/"
+  val typesafe =        "Typesafe" at "http://repo.typesafe.com/typesafe/releases/"
 }
 
 trait SbtCommonConfig {
