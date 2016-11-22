@@ -34,8 +34,8 @@ import scala.collection.immutable.HashSet
 package object context {
 
   // The default context is given by the following type.  It combines futures, logging and exception handling into
-  // a signle HKT using Monad transformers (WriterT and XorT).
-  type Type[$] = XorT[WriterT[Future, LoggingContext, ?], Throwable, $]
+  // a signle HKT using Monad transformers (WriterT and EitherT).
+  type Type[$] = EitherT[WriterT[Future, LoggingContext, ?], Throwable, $]
 
   // This function creates a implementation of the Zenith's `Zen` typeclass for the default
   // context type `Context`
