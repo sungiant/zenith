@@ -57,6 +57,16 @@ private [this] object TypeclassImplementor {
       case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
     }
 
+    override def liftScalaFutureWithScalaExecutionContext[T] (expression: ExecutionContext => Future[T]): Type[T] = Try (expression (ec)) match {
+      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](s))
+      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+    }
+
+    override def liftWithScalaExecutionContext[T] (expression: scala.concurrent.ExecutionContext => T): Type[T] = Try (expression (ec)) match {
+      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.value[Future, LoggingContext, T](s))
+      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+    }
+
     override def future[T] (expression: => T): Type[T] = Try (expression) match {
       case Success (s) => EitherT.right[WF, Throwable, T](WriterT.value[Future, LoggingContext, T](s))
       case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))

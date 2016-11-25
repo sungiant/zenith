@@ -72,7 +72,9 @@ object Logger {
   def success[T] (expression: => T): Z[T]
   def failure[T] (expression: => Throwable): Z[T]
 
-  def liftScalaFuture[T] (fx: => scala.concurrent.Future[T]): Z[T]
+  def liftScalaFuture[T] (expression: => scala.concurrent.Future[T]): Z[T]
+  def liftScalaFutureWithScalaExecutionContext[T] (expression: scala.concurrent.ExecutionContext => scala.concurrent.Future[T]): Z[T]
+  def liftWithScalaExecutionContext[T] (expression: scala.concurrent.ExecutionContext => T): Z[T]
 
   /*
    * When this future is completed, either through an exception, or a value,
@@ -80,7 +82,7 @@ object Logger {
    *
    *  If the future has already been completed, this will either be applied immediately or be scheduled asynchronously.
    */
-  def onComplete[X, Y](v: Z[X])(fn: Try[X] => Y): Unit
+  def onComplete[X, Y] (v: Z[X])(fn: Try[X] => Y): Unit
 
   /*
    * Async types can contain exceptions.
