@@ -3,31 +3,31 @@
 [![Build Status](https://travis-ci.org/sungiant/zenith.png?branch=master)][travis]
 [![Join the chat at https://gitter.im/sungiant/zenith](https://img.shields.io/badge/gitter-join%20chat-green.svg)][gitter]
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)][license]
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.sungiant/zenith_2.11.svg)][maven]
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.sungiant/zenith_2.12.svg)][maven]
 [![Coverage status](https://img.shields.io/codecov/c/github/sungiant/zenith/master.svg)][coverage]
 
 Zenith is a functional HTTP toolkit for Scala.
 
 ## Getting started
 
-Zenith is currently available for Scala 2.11.
+Zenith is currently available for Scala 2.11.8 and 2.12.0.
 
 To get started with SBT, simply add the following to your `build.sbt` file:
 
 ```scala
-libraryDependencies += "io.github.sungiant" %% "zenith" % "0.4.2"
+libraryDependencies += "io.github.sungiant" %% "zenith" % "0.4.3"
 ```
 
 Additionally, the `zenith-netty` package contains an off the shelf implementation of Zenith's abstract network layer:
 
 ```scala
-libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.4.2"
+libraryDependencies += "io.github.sungiant" %% "zenith-netty" % "0.4.3"
 ```
 
 Finally the `zenith-default` package is great for getting started, it contains an the shelf implementation of a Zenith compatible sequencing context as well as some useful Zenith plugins:
 
 ```scala
-libraryDependencies += "io.github.sungiant" %% "zenith-default" % "0.4.2"
+libraryDependencies += "io.github.sungiant" %% "zenith-default" % "0.4.3"
 ```
 
 
@@ -80,7 +80,7 @@ limitations under the License.
 [nscala-time]: https://github.com/nscala-time/nscala-time
 [travis]: https://travis-ci.org/sungiant/zenith
 [gitter]: https://gitter.im/sungiant/zenith?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
-[maven]: https://maven-badges.herokuapp.com/maven-central/io.github.sungiant/zenith_2.11
+[maven]: https://maven-badges.herokuapp.com/maven-central/io.github.sungiant/zenith_2.12
 [license]: https://raw.githubusercontent.com/sungiant/zenith/master/LICENSE
 [coverage]: https://codecov.io/github/sungiant/zenith
 [unfiltered]: http://unfiltered.databinder.net/Unfiltered.html
