@@ -60,7 +60,7 @@ abstract class Bot[Z[_]: Monad: Async: Logger, ClientState] {
   final def run (httpClient: HttpClient[Z]): Z[Result] = {
     type V[I] = StateT[Z, ClientState, I]
     actions
-      .map (_.run (httpClient, createStartState))
+      .map (_.run (httpClient, () => createStartState ()))
       .sequence[V, Result]
       .map (Foldable[List].fold (_))
       .runA (createStartState ())

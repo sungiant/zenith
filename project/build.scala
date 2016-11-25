@@ -12,15 +12,15 @@ import sbtrelease.ReleasePlugin.autoImport._
 import com.typesafe.sbt.SbtPgp.autoImport._
 
 object Version {
-  val nscala_time =     "1.6.0"
-  val specs2 =          "2.4.15"
+  val nscala_time =     "2.14.0"
+  val specs2 =          "3.8.6"
   val netty =           "3.10.3.Final"
 
   val cats =            "0.8.1"
   val circe =           "0.6.1"
 
   // compile time plugins
-  val kind_projector =  "0.9.2"
+  val kind_projector =  "0.9.3"
   val simulacrum =      "0.10.0"
   val paradise =        "2.1.0"
 }
@@ -59,8 +59,8 @@ trait SbtCommonConfig {
 
   lazy val buildSettings =
     (organization := "io.github.sungiant") ::
-    (scalaVersion := "2.11.8") ::
-    (crossScalaVersions := "2.10.5" :: "2.11.8" :: Nil) :: Nil
+    (scalaVersion := "2.12.0") ::
+    (crossScalaVersions := "2.11.8" :: "2.12.0" :: Nil) :: Nil
 
   lazy val commonSettings =
     (resolvers += Resolvers.sonatype) ::

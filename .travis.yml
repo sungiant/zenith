@@ -1,6 +1,7 @@
 sudo: false
 language: scala
 scala:
+   - 2.12.0
    - 2.11.8
 script:
   - sbt clean coverage test
