@@ -10,9 +10,9 @@ addons:
     packages:
       - oracle-java8-installer
 script:
-  - sbt clean coverage test
+  - sbt clean coverage test coverageReport
 after_success:
-  - pip install --user codecov && codecov
+  - pip install --user codecov
 notifications:
   webhooks:
     urls:
