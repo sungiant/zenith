@@ -53,33 +53,33 @@ private [this] object TypeclassImplementor {
     }
 
     override def liftScalaFuture[T] (expression: => Future[T]): Type[T] = Try (expression) match {
-      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](s))
-      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+      case Success (s) => EitherT.right[Throwable].apply[WF, T](WriterT.valueT[Future, LoggingContext, T](s))
+      case Failure (f) => EitherT.left [T].apply[WF, Throwable](WriterT.value[Future, LoggingContext, Throwable](f))
     }
 
     override def liftScalaFutureWithScalaExecutionContext[T] (expression: ExecutionContext => Future[T]): Type[T] = Try (expression (ec)) match {
-      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](s))
-      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+      case Success (s) => EitherT.right[Throwable].apply[WF, T](WriterT.valueT[Future, LoggingContext, T](s))
+      case Failure (f) => EitherT.left [T].apply[WF, Throwable](WriterT.value[Future, LoggingContext, Throwable](f))
     }
 
     override def liftWithScalaExecutionContext[T] (expression: scala.concurrent.ExecutionContext => T): Type[T] = Try (expression (ec)) match {
-      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.value[Future, LoggingContext, T](s))
-      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+      case Success (s) => EitherT.right[Throwable].apply[WF, T](WriterT.value[Future, LoggingContext, T](s))
+      case Failure (f) => EitherT.left [T].apply[WF, Throwable](WriterT.value[Future, LoggingContext, Throwable](f))
     }
 
     override def future[T] (expression: => T): Type[T] = Try (expression) match {
-      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.value[Future, LoggingContext, T](s))
-      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+      case Success (s) => EitherT.right[Throwable].apply[WF, T](WriterT.value[Future, LoggingContext, T](s))
+      case Failure (f) => EitherT.left [T].apply[WF, Throwable](WriterT.value[Future, LoggingContext, Throwable](f))
     }
 
     override def success[T] (expression: => T): Type[T] = Try (expression) match {
-      case Success (s) => EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](Future.successful (s)))
-      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+      case Success (s) => EitherT.right[Throwable].apply[WF, T](WriterT.valueT[Future, LoggingContext, T](Future.successful (s)))
+      case Failure (f) => EitherT.left [T].apply[WF, Throwable](WriterT.value[Future, LoggingContext, Throwable](f))
     }
 
     override def failure[T] (expression: => Throwable): Type[T] = Try (expression) match {
-      case Success (s) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](s))
-      case Failure (f) => EitherT.left[WF, Throwable, T] (WriterT.value[Future, LoggingContext, Throwable](f))
+      case Success (s) => EitherT.left [T].apply[WF, Throwable](WriterT.value[Future, LoggingContext, Throwable](s))
+      case Failure (f) => EitherT.left [T].apply[WF, Throwable](WriterT.value[Future, LoggingContext, Throwable](f))
     }
 
     override def onComplete[T, X](v: Type[T])(f: Try[T] => X): Unit = v.value.value.map { case Left (l) => throw l; case Right (r) => r }(ec).onComplete (f)(ec)
@@ -87,7 +87,7 @@ private [this] object TypeclassImplementor {
       private val p = Promise[T] ()
       def success (x: T): Unit = p.success (x)
       def failure (x: Throwable): Unit = p.failure (x)
-      def future: Type[T] = EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](p.future))
+      def future: Type[T] = EitherT.right[Throwable].apply[WF, T](WriterT.valueT[Future, LoggingContext, T](p.future))
     }
 
     /** implement Logger **********************************************************************************************/
@@ -142,13 +142,13 @@ private [this] object TypeclassImplementor {
       }(ec)
 
       // clear all exceptions and logs
-      EitherT.right[WF, Throwable, T](WriterT.valueT[Future, LoggingContext, T](f))
+      EitherT.right[Throwable].apply[WF, T](WriterT.valueT[Future, LoggingContext, T](f))
     }
 
     override def log (channel: => Option[String], level: => zenith.Logger.Level, message: => String): Type[Unit] = {
       Try { LoggingContext.log (channel, level, message) } match {
-        case Success (s) => EitherT.right[WF, Throwable, Unit](WriterT.put[Future, LoggingContext, Unit](())(s))
-        case Failure (f) => EitherT.left[WF, Throwable, Unit](WriterT.value[Future, LoggingContext, Throwable](f))
+        case Success (s) => EitherT.right[Throwable].apply[WF, Unit](WriterT.put[Future, LoggingContext, Unit](())(s))
+        case Failure (f) => EitherT.left[Unit].apply[WF, Throwable](WriterT.value[Future, LoggingContext, Throwable](f))
       }
     }
   }

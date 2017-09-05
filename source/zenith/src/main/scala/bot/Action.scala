@@ -16,6 +16,8 @@ import cats.implicits._
 import zenith.Extensions._
 import scala.util.{Try, Success, Failure}
 import java.lang.reflect.{Method => ReflectedMethod}
+import cats.mtl._
+import cats.mtl.implicits._
 
 /**
  * Action
@@ -24,6 +26,7 @@ abstract class Action[Z[_], ClientState] {
   def run (httpClient: HttpClient[Z], createStartState: () => ClientState): StateT[Z, ClientState, Result]
 }
 abstract class ActionT[Z[_]: Monad: Async: Logger, ClientState, TRequest, TResponse] extends Action [Z, ClientState] {
+
   def requestMapper: ReaderT[Z, TRequest, HttpRequest]
   def responseMapper: ReaderT[Z, HttpResponse, Try[TResponse]]
   def request: ReaderT[Z, ClientState, TRequest]
@@ -55,6 +58,7 @@ abstract class ActionT[Z[_]: Monad: Async: Logger, ClientState, TRequest, TRespo
   final def run (httpClient: HttpClient[Z], createStartState: () => ClientState): StateT[Z, ClientState, Result] = ActionT.run (this, httpClient, createStartState)
 }
 object ActionT {
+
   private def liftStateT[Z[_]: Monad, S, V] (v: Z[V]): StateT[Z, S, V] =
     StateT[Z, S, V] { s => v.map ((s, _)) }
 

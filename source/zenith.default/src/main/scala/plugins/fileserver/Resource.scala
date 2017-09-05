@@ -76,7 +76,7 @@ object Resource {
           }
           for {
             _ <- Logger[F].log (LOGCH, DEBUG, s"Potential resource paths:\n* " + possibilities.mkString("\n* "))
-            possibleFHsFL = possibilities.map (p => getResource[F] (p).run (loader)).sequenceU
+            possibleFHsFL = possibilities.map (p => getResource[F] (p).run (loader)).sequence
             possibleFHsL <- possibleFHsFL
             pathOpt = possibleFHsL.find (_.isDefined).flatten
             _ <- pathOpt match {

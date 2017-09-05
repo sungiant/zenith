@@ -16,17 +16,19 @@ object Version {
   val specs2 =          "3.8.6"
   val netty =           "3.10.3.Final"
 
-  val cats =            "0.8.1"
-  val circe =           "0.6.1"
+  val cats =            "1.0.0-MF"
+  val cats_mtl =        "0.0.2"
+  val circe =           "0.9.0-M1"
 
   // compile time plugins
-  val kind_projector =  "0.9.3"
+  val kind_projector =  "0.9.4"
   val simulacrum =      "0.10.0"
   val paradise =        "2.1.0"
 }
 
 object Dependencies {
-  val cats =            "org.typelevel" %% "cats" % Version.cats
+  val cats =            "org.typelevel" %% "cats-core" % Version.cats
+  val cats_mtl =        "org.typelevel" %% "cats-mtl-core" % Version.cats_mtl
   val nscala_time =     "com.github.nscala-time" %% "nscala-time" % Version.nscala_time
   val specs2 =          "org.specs2" %% "specs2-core" % Version.specs2 % "test"
   val simulacrum =      "com.github.mpilquist" %% "simulacrum" % Version.simulacrum
@@ -44,8 +46,8 @@ object Resolvers {
   val typesafe =        "Typesafe" at "http://repo.typesafe.com/typesafe/releases/"
 }
 
-trait SbtCommonConfig {
-  lazy val compilerOptions =
+object Configurations {
+  private lazy val compilerOptions =
     "-deprecation" ::
     "-encoding" :: "UTF-8" ::
     "-feature" ::
@@ -55,18 +57,20 @@ trait SbtCommonConfig {
     "-Yrangepos" ::
     "-Ywarn-dead-code" ::
     "-Ywarn-numeric-widen" ::
+    "-Ypartial-unification" ::
     "-Xfuture" :: Nil
 
   lazy val buildSettings =
     (organization := "io.github.sungiant") ::
-    (scalaVersion := "2.12.0") ::
-    (crossScalaVersions := "2.11.8" :: "2.12.0" :: Nil) :: Nil
+    (scalaVersion := "2.12.3") ::
+    (crossScalaVersions := "2.11.11" :: "2.12.3" :: Nil) :: Nil
 
   lazy val commonSettings =
     (resolvers += Resolvers.sonatype) ::
     (resolvers += Resolvers.sonatype_public) ::
     (resolvers += Resolvers.typesafe) ::
     (libraryDependencies += Dependencies.cats) ::
+    (libraryDependencies += Dependencies.cats_mtl) ::
     (libraryDependencies += Dependencies.specs2) ::
     (libraryDependencies += Dependencies.nscala_time) ::
     (libraryDependencies += Dependencies.simulacrum) ::
@@ -77,6 +81,7 @@ trait SbtCommonConfig {
 
   lazy val noPublishSettings =
     (publish := ()) ::
+    (publishArtifact := false) ::
     (publishLocal := ()) :: Nil
 
   lazy val publishSettings =
@@ -110,42 +115,3 @@ trait SbtCommonConfig {
       )) :: Nil
 }
 
-trait SbtZenithBuild { this: SbtCommonConfig =>
-  lazy val zenith = project
-    .in (file ("source/zenith"))
-    .settings (moduleName := "zenith")
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (publishSettings: _*)
-    .settings (autoCompilerPlugins := true)
-
-  lazy val zenith_netty = project
-    .in (file ("source/zenith.netty"))
-    .settings (moduleName := "zenith-netty")
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (publishSettings: _*)
-    .settings (libraryDependencies += Dependencies.netty)
-    .dependsOn (zenith % "test->test;compile->compile")
-
-  lazy val zenith_default = project
-    .in (file ("source/zenith.default"))
-    .settings (moduleName := "zenith-default")
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (publishSettings: _*)
-    .settings (libraryDependencies += Dependencies.circe_core)
-    .settings (libraryDependencies += Dependencies.circe_generic)
-    .settings (libraryDependencies += Dependencies.circe_jawn)
-    .settings (autoCompilerPlugins := true)
-    .dependsOn (zenith % "test->test;compile->compile")
-}
-
-object SbtBuild extends Build with SbtCommonConfig with SbtZenithBuild {
-  lazy val root = project
-    .in (file ("."))
-    .settings (buildSettings: _*)
-    .settings (commonSettings: _*)
-    .settings (noPublishSettings: _*)
-    .aggregate (zenith, zenith_netty, zenith_default)
-}
