@@ -5,7 +5,7 @@ import scala.collection.immutable.HashSet
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.circe._, io.circe.generic.semiauto._
 import zenith._, zenith.bot._, zenith.client._, zenith.netty._
-import cats._, cats.data._, cats.std.all._
+import cats._, cats.data._, cats.implicits._
 
 /**********************************************************************************************************************/
 
@@ -106,7 +106,7 @@ sealed class GetLolShardDetails[Z[_]: Monad: Async: Logger] (endpoint: String)
 
   def responseMapper: ReaderT[Z, HttpResponse, Try[ShardStatus]] = ReaderT { r => Async[Z].success {
     r.body match {
-      case Some (d) => decode[ShardStatus](d).toEither match {
+      case Some (d) => decode[ShardStatus](d) match {
         case Left (l) => Failure (new Throwable (l))
         case Right (r) => Success (r)
       }
@@ -141,7 +141,7 @@ sealed class GetLolShardMeta[Z[_]: Monad: Async: Logger] (endpoint: String, shar
   def responseMapper: ReaderT[Z, HttpResponse, Try[List[Shard]]] = ReaderT { r => Async[Z].success {
     r.body match {
       case Some (d) =>
-        decode[List[Shard]](d).toEither match {
+        decode[List[Shard]](d) match {
         case Left (f) => Failure (new Throwable (f))
         case Right (s) => Success (s)
       }
