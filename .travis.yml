@@ -10,6 +10,6 @@ addons:
     packages:
       - oracle-java8-installer
 script:
-  - sbt clean coverage test
+  - sbt clean coverage test coverageReport
 after_success:
-  - pip install --user codecov && codecov
+  - bash <(curl -s https://codecov.io/bash)
