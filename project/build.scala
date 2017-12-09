@@ -12,16 +12,16 @@ import sbtrelease.ReleasePlugin.autoImport._
 import com.typesafe.sbt.SbtPgp.autoImport._
 
 object Version {
-  val nscala_time =     "2.14.0"
-  val specs2 =          "3.8.6"
+  val nscala_time =     "2.18.0"
+  val specs2 =          "4.0.2"
   val netty =           "3.10.3.Final"
 
-  val cats =            "1.0.0-MF"
-  val cats_mtl =        "0.0.2"
-  val circe =           "0.9.0-M1"
+  val cats =            "1.0.0-RC1"
+  val cats_mtl =        "0.1.0"
+  val circe =           "0.9.0-M2"
 
   // compile time plugins
-  val kind_projector =  "0.9.4"
+  val kind_projector =  "0.9.5"
   val simulacrum =      "0.10.0"
   val paradise =        "2.1.0"
 }
@@ -62,8 +62,8 @@ object Configurations {
 
   lazy val buildSettings =
     (organization := "io.github.sungiant") ::
-    (scalaVersion := "2.12.3") ::
-    (crossScalaVersions := "2.11.11" :: "2.12.3" :: Nil) :: Nil
+    (scalaVersion := "2.12.4") ::
+    (crossScalaVersions := "2.11.12" :: "2.12.4" :: Nil) :: Nil
 
   lazy val commonSettings =
     (resolvers += Resolvers.sonatype) ::
@@ -80,9 +80,10 @@ object Configurations {
     (parallelExecution in ThisBuild := false) :: Nil
 
   lazy val noPublishSettings =
-    (publish := ()) ::
+    (publish := {}) ::
     (publishArtifact := false) ::
-    (publishLocal := ()) :: Nil
+    (publishLocal := {}) ::
+    (publishTo := Some ("foo" at "bar")) :: Nil // I'd like to be able to just write `None` here but when I do sbt pgp kicks off.
 
   lazy val publishSettings =
     (releaseCrossBuild := true) ::
