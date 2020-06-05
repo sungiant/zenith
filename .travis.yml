@@ -4,11 +4,7 @@ scala:
    - 2.12.3
    - 2.11.11
 jdk:
-  - oraclejdk8
-addons:
-  apt:
-    packages:
-      - oracle-java8-installer
+  - openjdk8
 script:
   - sbt clean coverage test coverageReport
 after_success:
