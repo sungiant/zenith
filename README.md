@@ -1,10 +1,10 @@
 # Zenith
 
 [![Build Status](https://travis-ci.org/sungiant/zenith.png?branch=master)][travis]
-[![Join the chat at https://gitter.im/sungiant/zenith](https://img.shields.io/badge/gitter-join%20chat-green.svg)][gitter]
-[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)][license]
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.sungiant/zenith_2.12.svg)][maven]
-[![Coverage status](https://img.shields.io/codecov/c/github/sungiant/zenith/master.svg)][coverage]
+[![Coverage](https://img.shields.io/codecov/c/github/sungiant/zenith/master.svg)][coverage]
+![Size](https://img.shields.io/github/repo-size/sungiant/zenith)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)][license]
 
 Zenith is a functional HTTP toolkit for Scala.
 
