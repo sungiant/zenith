@@ -2,7 +2,7 @@
 
 [![Build Status](https://img.shields.io/travis/sungiant/zenith)][travis]
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.sungiant/zenith_2.12)][maven]
-[![Coverage](https://img.shields.io/codecov/c/github/sungiant/zenith)][coverage]
+[![Coverage](https://codecov.io/gh/sungiant/zenith/branch/master/graph/badge.svg)][codecov]
 ![Size](https://img.shields.io/github/repo-size/sungiant/zenith)
 [![License](https://img.shields.io/github/license/sungiant/zenith)][license]
 
@@ -84,7 +84,7 @@ limitations under the License.
 [gitter]: https://gitter.im/sungiant/zenith?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 [maven]: https://maven-badges.herokuapp.com/maven-central/io.github.sungiant/zenith_2.12
 [license]: https://raw.githubusercontent.com/sungiant/zenith/master/LICENSE
-[coverage]: https://codecov.io/github/sungiant/zenith
+[codecov]: https://codecov.io/github/sungiant/zenith
 [unfiltered]: http://unfiltered.databinder.net/Unfiltered.html
 [circe]: https://github.com/travisbrown/circe
 [simulacrum]: https://github.com/mpilquist/simulacrum
